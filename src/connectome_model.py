@@ -105,10 +105,12 @@ class ConnectomeMarioPolicy(nn.Module):
         node_mapping_csv_path: Path | str,
         node_metadata_csv_path: Path | str,
         num_actions: int = 5,
+        in_channels: int = 1,
         cnn_dim: int = 512,
         alpha: float = 0.5,
     ):
         super().__init__()
+        self.in_channels = in_channels
         # Load sparse graph
         sub_csr = sp.load_npz(str(subgraph_npz_path))
         self.num_nodes = sub_csr.shape[0]
@@ -137,7 +139,7 @@ class ConnectomeMarioPolicy(nn.Module):
         self.num_motor = len(dn_indices)
 
         # Trainable modules
-        self.encoder = MarioCNNEncoder(in_channels=1, out_dim=cnn_dim)
+        self.encoder = MarioCNNEncoder(in_channels=in_channels, out_dim=cnn_dim)
         self.adapter = nn.Linear(cnn_dim, self.num_sensory)
         self.rnn = ConnectomeRecurrentLayer(sub_csr, alpha=alpha)
         self.actor = nn.Linear(self.num_motor, num_actions)

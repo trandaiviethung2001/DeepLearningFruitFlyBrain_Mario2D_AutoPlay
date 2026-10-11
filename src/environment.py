@@ -15,6 +15,8 @@ from nes_py.wrappers import JoypadSpace
 import torchvision.transforms as T
 import torch
 
+from collections import deque
+
 MARIO_5_ACTIONS = [
     ["NOOP"],          # Action 0: No operation
     ["right"],         # Action 1: Walk right
@@ -27,11 +29,18 @@ MARIO_5_ACTIONS = [
 class Mario2DEnv:
     """Standardized wrapper around SuperMarioBros-1-1-v0."""
 
-    def __init__(self, rom_id: str = "SuperMarioBros-1-1-v0", render_mode: str | None = None):
+    def __init__(
+        self,
+        rom_id: str = "SuperMarioBros-1-1-v0",
+        render_mode: str | None = None,
+        frame_stack: int = 1,
+    ):
         self.rom_id = rom_id
+        self.frame_stack = max(1, frame_stack)
         raw_env = gym_super_mario_bros.make(rom_id)
         self.env = JoypadSpace(raw_env, MARIO_5_ACTIONS)
         self.action_space_n = len(MARIO_5_ACTIONS)
+        self.frame_buffer: deque[torch.Tensor] = deque(maxlen=self.frame_stack)
 
         # Standard observation transformation: RGB -> Grayscale -> 84x84 -> float32 [0, 1]
         self.transform = T.Compose([
@@ -47,6 +56,10 @@ class Mario2DEnv:
             frame = np.array(frame)
         tensor = self.transform(frame)
         return tensor
+
+    def _get_stacked_obs(self) -> torch.Tensor:
+        """Return stacked observation tensor of shape (frame_stack, 84, 84)."""
+        return torch.cat(list(self.frame_buffer), dim=0)
 
     @property
     def ram(self) -> np.ndarray:
@@ -67,7 +80,13 @@ class Mario2DEnv:
         else:
             obs, info = res, {}
         proc_obs = self.preprocess_frame(obs)
-        return proc_obs, info
+
+        # Clear buffer and fill with initial frame
+        self.frame_buffer.clear()
+        for _ in range(self.frame_stack):
+            self.frame_buffer.append(proc_obs)
+
+        return self._get_stacked_obs(), info
 
     def step(self, action: int) -> Tuple[torch.Tensor, float, bool, bool, dict[str, Any]]:
         """Take a step and return (obs, reward, terminated, truncated, info)."""
@@ -82,7 +101,8 @@ class Mario2DEnv:
             raise RuntimeError(f"Unexpected step return format of length {len(step_res)}")
 
         proc_obs = self.preprocess_frame(obs)
-        return proc_obs, float(reward), bool(terminated), bool(truncated), info
+        self.frame_buffer.append(proc_obs)
+        return self._get_stacked_obs(), float(reward), bool(terminated), bool(truncated), info
 
     def close(self) -> None:
         self.env.close()

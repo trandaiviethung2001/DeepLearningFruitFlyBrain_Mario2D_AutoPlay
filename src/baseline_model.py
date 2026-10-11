@@ -18,12 +18,14 @@ class BaselineMarioPolicy(nn.Module):
     def __init__(
         self,
         num_actions: int = 5,
+        in_channels: int = 1,
         cnn_dim: int = 512,
         hidden_dim: int = 1024,
     ):
         super().__init__()
+        self.in_channels = in_channels
         self.hidden_dim = hidden_dim
-        self.encoder = MarioCNNEncoder(in_channels=1, out_dim=cnn_dim)
+        self.encoder = MarioCNNEncoder(in_channels=in_channels, out_dim=cnn_dim)
         self.gru = nn.GRUCell(cnn_dim, hidden_dim)
         self.actor = nn.Linear(hidden_dim, num_actions)
         self.critic = nn.Linear(hidden_dim, 1)
