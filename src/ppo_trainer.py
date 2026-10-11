@@ -193,6 +193,7 @@ class PPOTrainer:
         ent_coef: float = 0.05,
         max_grad_norm: float = 0.5,
         use_dopamine: bool = True,
+        render: bool = False,
     ):
         self.model = model.to(device)
         self.env = env
@@ -205,6 +206,7 @@ class PPOTrainer:
         self.max_grad_norm = max_grad_norm
         self.use_dopamine = use_dopamine
         self.dopamine_shaper = DopamineRewardShaper() if use_dopamine else None
+        self.render = render
 
         self.optimizer = torch.optim.Adam(
             filter(lambda p: p.requires_grad, self.model.parameters()),
@@ -243,6 +245,10 @@ class PPOTrainer:
 
             next_obs, r, terminated, truncated, info = self.env.step(action)
             done = terminated or truncated
+
+            if self.render:
+                self.env.render()
+                time.sleep(0.015)
 
             if self.dopamine_shaper is not None:
                 step_reward, _ = self.dopamine_shaper.shape(r, info, done)
@@ -490,6 +496,7 @@ def main():
         help="Disable dopamine reward shaping and use raw environment rewards",
     )
     parser.add_argument("--ent-coef", type=float, default=0.05, help="Entropy coefficient for exploration")
+    parser.add_argument("--render", action="store_true", help="Render live game window on desktop during training")
     args = parser.parse_args()
 
     device = torch.device(
@@ -498,7 +505,7 @@ def main():
     print(f"Device: {device}")
 
     # Initialize environment
-    env = Mario2DEnv(frame_stack=args.frame_stack)
+    env = Mario2DEnv(frame_stack=args.frame_stack, render_mode="human" if args.render else None)
 
     # Initialize model
     processed_dir = Path("data/processed")
@@ -549,6 +556,7 @@ def main():
         lr=args.lr,
         ent_coef=args.ent_coef,
         use_dopamine=args.use_dopamine,
+        render=args.render,
     )
 
     train_stats = trainer.train(

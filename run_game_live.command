@@ -17,3 +17,4 @@ echo ""
 echo ""
 echo "Game session finished."
 read -p "Press [Enter] to close this terminal window..."
+
