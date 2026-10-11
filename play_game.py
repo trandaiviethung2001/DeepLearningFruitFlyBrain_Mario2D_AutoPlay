@@ -71,7 +71,7 @@ def run_visual_episode(
     print("=" * 70)
 
     # Initialize environment
-    env = Mario2DEnv(frame_stack=frame_stack)
+    env = Mario2DEnv(frame_stack=frame_stack, render_mode="human" if render_gui else None)
 
     # Load Model
     model = None

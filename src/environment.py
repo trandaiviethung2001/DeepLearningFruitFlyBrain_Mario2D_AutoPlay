@@ -36,8 +36,12 @@ class Mario2DEnv:
         frame_stack: int = 1,
     ):
         self.rom_id = rom_id
+        self.render_mode = render_mode
         self.frame_stack = max(1, frame_stack)
-        raw_env = gym_super_mario_bros.make(rom_id)
+        if render_mode is not None:
+            raw_env = gym_super_mario_bros.make(rom_id, render_mode=render_mode)
+        else:
+            raw_env = gym_super_mario_bros.make(rom_id)
         self.env = JoypadSpace(raw_env, MARIO_5_ACTIONS)
         self.action_space_n = len(MARIO_5_ACTIONS)
         self.frame_buffer: deque[torch.Tensor] = deque(maxlen=self.frame_stack)
@@ -49,6 +53,10 @@ class Mario2DEnv:
             T.Resize((84, 84)),
             T.ToTensor(),  # yields torch.Tensor (1, 84, 84) in [0.0, 1.0]
         ])
+
+    def render(self) -> Any:
+        """Render the environment frame (opens GUI window if render_mode='human')."""
+        return self.env.render()
 
     def preprocess_frame(self, frame: np.ndarray) -> torch.Tensor:
         """Convert raw (240, 256, 3) uint8 numpy array to (1, 84, 84) float32 tensor."""
