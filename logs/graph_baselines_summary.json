@@ -1,0 +1,34 @@
+{
+  "timestamp": "2026-10-11T07:19:02Z",
+  "rewired_model_b": {
+    "generator": "degree_preserving_shuffled_graph",
+    "input_csr_path": "data/processed/subgraph_graph.npz",
+    "output_npz_path": "data/processed/shuffled_connectome_graph.npz",
+    "num_nodes": 30000,
+    "num_edges": 6001050,
+    "target_swaps": 12002100,
+    "executed_swaps": 12002100,
+    "modified_edges": 5889525,
+    "modified_edge_ratio": 0.981416,
+    "out_degree_preserved": true,
+    "in_degree_preserved": true,
+    "self_loops": 0,
+    "duration_seconds": 25.43,
+    "seed": 42
+  },
+  "random_model_c": {
+    "generator": "random_sparse_erdos_renyi",
+    "output_npz_path": "data/processed/random_sparse_graph.npz",
+    "num_nodes": 30000,
+    "num_edges": 6001050,
+    "mean_out_degree": 200.035,
+    "min_out_degree": 0,
+    "max_out_degree": 270,
+    "mean_in_degree": 200.035,
+    "min_in_degree": 142,
+    "max_in_degree": 256,
+    "self_loops": 0,
+    "duration_seconds": 3.95,
+    "seed": 42
+  }
+}

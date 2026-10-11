@@ -22,6 +22,7 @@ from tests.test_short_training import run_short_training_test
 from tests.test_local_inference import run_local_inference_test
 from tests.test_demonstration_dataset import run_demonstration_tests
 from tests.test_comparative_training import run_comparative_training_tests
+from tests.test_graph_baselines import run_graph_baseline_tests
 
 
 TEST_SUITE = [
@@ -33,6 +34,7 @@ TEST_SUITE = [
     ("TEST_F_INFERENCE", "Local Inference Benchmark on Apple Silicon (MPS)", lambda: run_local_inference_test(50)),
     ("TEST_G_DEMONSTRATION", "Demonstration Collector & Dataset Validation", run_demonstration_tests),
     ("TEST_H_COMPARATIVE", "Comparative Training Pipeline & Parity Verification", run_comparative_training_tests),
+    ("TEST_I_GRAPH_BASELINES", "Graph Baselines (Rewired & Random Sparse) Invariants & Parity", run_graph_baseline_tests),
 ]
 
 

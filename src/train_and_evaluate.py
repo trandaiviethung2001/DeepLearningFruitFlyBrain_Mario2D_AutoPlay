@@ -1,8 +1,10 @@
-"""Controlled Comparative Training & Evaluation Pipeline.
+"""Controlled Comparative Training & Evaluation Pipeline for MaleCNS & Baselines.
 
-Trains and evaluates:
-1. ConnectomeMarioPolicy: Fixed 30,000-neuron MaleCNS sparse recurrence (6.44M params).
-2. BaselineMarioPolicy: Parameter-matched dense GRU-1024 (6.41M params).
+Trains and evaluates 4 parameter-matched architectures:
+1. Model A: ConnectomeMarioPolicy (Fixed 30,000-neuron MaleCNS biological topology, 6.44M params)
+2. Model B: Rewired MaleCNS Policy (Degree-preserving directed shuffled topology, 6.44M params)
+3. Model C: Random Sparse ER Policy (Uniform Erdős–Rényi random sparse topology, 6.44M params)
+4. Model D: BaselineMarioPolicy (Unconstrained dense GRU-1024, 6.41M params)
 
 Protocol:
 - Identical training data (whole-episode partitioned scaled demonstration dataset).
@@ -41,6 +43,42 @@ from src.demonstration_collector import (
     load_demonstration_dataset,
 )
 from src.environment import Mario2DEnv
+
+
+MODELS_CONFIG: Dict[str, Dict[str, Any]] = {
+    "connectome": {
+        "name": "MaleCNS Connectome Policy (30k Neurons)",
+        "slug": "connectome_model",
+        "type": "connectome",
+        "graph_rel_path": "data/processed/subgraph_graph.npz",
+        "topology": "Fixed MaleCNS 30,000-neuron CSR (6,001,050 edges)",
+        "checkpoint": "checkpoints/connectome_model_best.pt",
+    },
+    "rewired": {
+        "name": "Rewired MaleCNS Policy (Degree-Preserving)",
+        "slug": "rewired_connectome",
+        "type": "connectome",
+        "graph_rel_path": "data/processed/shuffled_connectome_graph.npz",
+        "topology": "Degree-Preserving Shuffled 30,000-neuron CSR (6,001,050 edges, 98.1% rewired)",
+        "checkpoint": "checkpoints/rewired_connectome_best.pt",
+    },
+    "random_sparse": {
+        "name": "Random Sparse Erdős-Rényi Policy (30k Neurons)",
+        "slug": "random_sparse",
+        "type": "connectome",
+        "graph_rel_path": "data/processed/random_sparse_graph.npz",
+        "topology": "Erdős-Rényi Random Sparse 30,000-neuron CSR (6,001,050 edges)",
+        "checkpoint": "checkpoints/random_sparse_best.pt",
+    },
+    "baseline_gru": {
+        "name": "Baseline GRU-1024 Policy (Dense)",
+        "slug": "baseline_gru",
+        "type": "gru",
+        "graph_rel_path": None,
+        "topology": "Unconstrained PyTorch GRUCell (dense 1024)",
+        "checkpoint": "checkpoints/baseline_gru_best.pt",
+    },
+}
 
 
 class TransitionDataset(Dataset):
@@ -225,6 +263,7 @@ def train_model(
     checkpoint_path: Path,
     class_weights: Optional[torch.Tensor] = None,
     log_dir: Optional[Path] = None,
+    model_slug: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Train a single model and track best validation checkpoint."""
     print(f"\n{'=' * 60}")
@@ -246,7 +285,7 @@ def train_model(
     csv_file = None
     if log_dir is not None:
         log_dir.mkdir(parents=True, exist_ok=True)
-        slug = "connectome_model" if "Connectome" in model_name else "baseline_gru"
+        slug = model_slug or ("connectome_model" if "Connectome" in model_name else "baseline_gru")
         csv_file = log_dir / f"{slug}_training_metrics.csv"
         with open(csv_file, "w") as f:
             f.write("epoch,train_loss,train_acc,val_loss,val_acc,lr,epoch_duration_sec,samples_per_sec,is_best,timestamp\n")
@@ -315,13 +354,38 @@ def train_model(
     }
 
 
+def instantiate_model(model_key: str, device: torch.device) -> Tuple[nn.Module, Dict[str, Any]]:
+    """Factory function to instantiate any of the 4 models."""
+    cfg = MODELS_CONFIG[model_key]
+    processed_dir = Path("data/processed")
+
+    if cfg["type"] == "connectome":
+        model = ConnectomeMarioPolicy(
+            subgraph_npz_path=processed_dir.parent.parent / cfg["graph_rel_path"] if not Path(cfg["graph_rel_path"]).exists() else Path(cfg["graph_rel_path"]),
+            node_mapping_csv_path=processed_dir / "subgraph_node_mapping.csv",
+            node_metadata_csv_path=processed_dir / "node_metadata.csv",
+        ).to(device)
+    elif cfg["type"] == "gru":
+        model = BaselineMarioPolicy(cnn_dim=512, hidden_dim=1024).to(device)
+    else:
+        raise ValueError(f"Unknown model type: {cfg['type']}")
+
+    return model, cfg
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Controlled Comparative Training & Evaluation")
+    parser = argparse.ArgumentParser(description="Controlled Comparative Training & Evaluation Suite")
     parser.add_argument(
         "--dataset",
         type=str,
         default="data/demonstrations/scaled_demonstrations.pt",
         help="Path to scaled demonstrations",
+    )
+    parser.add_argument(
+        "--models",
+        nargs="+",
+        default=["connectome", "rewired", "random_sparse", "baseline_gru"],
+        help="Models to train/evaluate: connectome, rewired, random_sparse, baseline_gru, or all",
     )
     parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs")
     parser.add_argument("--batch-size", type=int, default=128, help="Mini-batch size")
@@ -329,7 +393,7 @@ def main() -> None:
     parser.add_argument(
         "--output-report",
         type=str,
-        default="comparative_evaluation_report.json",
+        default="baseline_ablation_report.json",
         help="Output report path",
     )
     parser.add_argument(
@@ -344,11 +408,24 @@ def main() -> None:
         help="Skip training and evaluate existing checkpoints on test split and closed-loop environment",
     )
     parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip training if model checkpoint already exists on disk",
+    )
+    parser.add_argument(
         "--use-class-weights",
         action="store_true",
         help="Use inverse-frequency class weights in CrossEntropyLoss",
     )
     args = parser.parse_args()
+
+    # Expand 'all'
+    selected_keys = args.models
+    if "all" in selected_keys:
+        selected_keys = ["connectome", "rewired", "random_sparse", "baseline_gru"]
+    for k in selected_keys:
+        if k not in MODELS_CONFIG:
+            raise ValueError(f"Unknown model key '{k}'. Available: {list(MODELS_CONFIG.keys())}")
 
     device = torch.device(
         "mps"
@@ -360,7 +437,6 @@ def main() -> None:
     # 1. Load scaled demonstration dataset
     dataset_path = Path(args.dataset)
     if not dataset_path.exists():
-        # Fall back to pilot dataset if scaled not found
         dataset_path = Path("data/demonstrations/pilot_demonstrations.pt")
         print(f"Scaled dataset not found. Falling back to pilot dataset: {dataset_path}")
 
@@ -406,94 +482,87 @@ def main() -> None:
     else:
         print("Using standard unweighted CrossEntropyLoss")
 
-    # 3. Instantiate parameter-matched models
-    processed_dir = Path("data/processed")
-    connectome_model = ConnectomeMarioPolicy(
-        subgraph_npz_path=processed_dir / "subgraph_graph.npz",
-        node_mapping_csv_path=processed_dir / "subgraph_node_mapping.csv",
-        node_metadata_csv_path=processed_dir / "node_metadata.csv",
-    ).to(device)
+    log_dir = Path(args.log_dir)
+    log_dir.mkdir(parents=True, exist_ok=True)
 
-    baseline_model = BaselineMarioPolicy(cnn_dim=512, hidden_dim=1024).to(device)
+    # 3. Train or Load Models
+    trained_models: Dict[str, nn.Module] = {}
+    training_stats: Dict[str, Dict[str, Any]] = {}
 
-    c_ckpt_path = Path("checkpoints/connectome_model_best.pt")
-    b_ckpt_path = Path("checkpoints/baseline_gru_best.pt")
+    for key in selected_keys:
+        model, cfg = instantiate_model(key, device)
+        ckpt_path = Path(cfg["checkpoint"])
+        should_train = True
 
-    if args.eval_only and c_ckpt_path.exists() and b_ckpt_path.exists():
-        print("\nLoading existing trained checkpoints for evaluation (--eval-only)...")
-        c_ckpt = torch.load(c_ckpt_path, map_location=device, weights_only=False)
-        connectome_model.load_state_dict(c_ckpt["model_state_dict"])
-        c_train_stats = {
-            "model_name": c_ckpt.get("model_name", "MaleCNS Connectome Policy (30k Neurons)"),
-            "trainable_parameters": sum(p.numel() for p in connectome_model.parameters() if p.requires_grad),
-            "total_training_time_seconds": 173.62,
-            "best_epoch": c_ckpt["epoch"],
-            "best_val_loss": round(c_ckpt["val_loss"], 4),
-            "best_val_acc": round(c_ckpt["val_acc"], 4),
-            "history": {},
-            "checkpoint_path": str(c_ckpt_path),
-        }
+        if args.eval_only:
+            should_train = False
+        elif args.skip_existing and ckpt_path.exists():
+            print(f"\nFound existing checkpoint for {cfg['name']} (--skip-existing). Skipping training.")
+            should_train = False
 
-        b_ckpt = torch.load(b_ckpt_path, map_location=device, weights_only=False)
-        baseline_model.load_state_dict(b_ckpt["model_state_dict"])
-        b_train_stats = {
-            "model_name": b_ckpt.get("model_name", "Baseline GRU-1024 Policy (Dense)"),
-            "trainable_parameters": sum(p.numel() for p in baseline_model.parameters() if p.requires_grad),
-            "total_training_time_seconds": 30.43,
-            "best_epoch": b_ckpt["epoch"],
-            "best_val_loss": round(b_ckpt["val_loss"], 4),
-            "best_val_acc": round(b_ckpt["val_acc"], 4),
-            "history": {},
-            "checkpoint_path": str(b_ckpt_path),
-        }
-    else:
-        # 4. Train Connectome Model
-        log_dir = Path(args.log_dir)
-        c_train_stats = train_model(
-            model_name="MaleCNS Connectome Policy (30k Neurons)",
-            model=connectome_model,
-            train_loader=train_loader,
-            val_loader=val_loader,
-            epochs=args.epochs,
-            lr=args.lr,
-            device=device,
-            checkpoint_path=c_ckpt_path,
-            class_weights=weights,
-            log_dir=log_dir,
-        )
+        if should_train:
+            stats = train_model(
+                model_name=cfg["name"],
+                model=model,
+                train_loader=train_loader,
+                val_loader=val_loader,
+                epochs=args.epochs,
+                lr=args.lr,
+                device=device,
+                checkpoint_path=ckpt_path,
+                class_weights=weights,
+                log_dir=log_dir,
+                model_slug=cfg["slug"],
+            )
+            training_stats[key] = stats
+        else:
+            if not ckpt_path.exists():
+                raise FileNotFoundError(f"Requested eval-only / skip-existing for {key}, but checkpoint missing: {ckpt_path}")
+            print(f"Loading checkpoint for {cfg['name']} from {ckpt_path}...")
+            ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
+            model.load_state_dict(ckpt["model_state_dict"])
+            training_stats[key] = {
+                "model_name": cfg["name"],
+                "trainable_parameters": sum(p.numel() for p in model.parameters() if p.requires_grad),
+                "total_training_time_seconds": ckpt.get("total_training_time_seconds", 0.0),
+                "best_epoch": ckpt.get("epoch", 5),
+                "best_val_loss": round(ckpt.get("val_loss", 0.0), 4),
+                "best_val_acc": round(ckpt.get("val_acc", 0.0), 4),
+                "history": ckpt.get("history", {}),
+                "checkpoint_path": str(ckpt_path),
+            }
 
-        # 5. Train Baseline GRU Model
-        b_train_stats = train_model(
-            model_name="Baseline GRU-1024 Policy (Dense)",
-            model=baseline_model,
-            train_loader=train_loader,
-            val_loader=val_loader,
-            epochs=args.epochs,
-            lr=args.lr,
-            device=device,
-            checkpoint_path=b_ckpt_path,
-            class_weights=weights,
-            log_dir=log_dir,
-        )
+        trained_models[key] = model
 
-    # 6. Evaluate on Held-Out Test Set (Loss & Accuracy)
+    # 4. Evaluate on Held-Out Test Set (Loss & Accuracy)
     criterion_eval = nn.CrossEntropyLoss()
-    c_test_loss, c_test_acc = evaluate_loss(connectome_model, test_loader, criterion_eval, device)
-    b_test_loss, b_test_acc = evaluate_loss(baseline_model, test_loader, criterion_eval, device)
+    test_eval_results: Dict[str, Dict[str, float]] = {}
+    for key, model in trained_models.items():
+        t_loss, t_acc = evaluate_loss(model, test_loader, criterion_eval, device)
+        test_eval_results[key] = {
+            "test_loss": round(t_loss, 4),
+            "test_acc": round(t_acc, 4),
+        }
+        print(f"Test Split Eval -> {MODELS_CONFIG[key]['name']}: Loss = {t_loss:.4f}, Accuracy = {t_acc * 100:.2f}%")
 
-    # 7. Closed-Loop Gameplay Evaluation on Test Seeds
+    # 5. Closed-Loop Gameplay Evaluation on Held-Out Test Seeds
     env = Mario2DEnv()
     eval_seeds = sorted(test_seeds)
     print(f"\nEvaluating closed-loop gameplay on {len(eval_seeds)} test seeds: {eval_seeds}...")
+    closed_loop_results: Dict[str, Dict[str, Any]] = {}
 
-    c_closed_loop = evaluate_closed_loop(env, connectome_model, eval_seeds, device)
-    b_closed_loop = evaluate_closed_loop(env, baseline_model, eval_seeds, device)
+    for key, model in trained_models.items():
+        print(f"Benchmarking closed-loop: {MODELS_CONFIG[key]['name']}...")
+        cl_res = evaluate_closed_loop(env, model, eval_seeds, device)
+        closed_loop_results[key] = cl_res
+        print(f"  -> Mean Final X: {cl_res['mean_final_x']} | Mean Reward: {cl_res['mean_reward']} | Obstacle 1 Rate: {cl_res['first_obstacle_clear_rate']*100:.1f}%")
+
     env.close()
 
-    # 8. Assemble Comparative Report
-    report = {
+    # 6. Assemble Comprehensive Report
+    report: Dict[str, Any] = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "phase": "Phase 4B: Controlled Comparative Training & Evaluation",
+        "phase": "Phase 5: Baselines & Ablation Study Block",
         "training_configuration": {
             "dataset": str(dataset_path),
             "train_samples": len(train_ds),
@@ -505,111 +574,79 @@ def main() -> None:
             "device": str(device),
             "class_weights": weights.tolist() if weights is not None else None,
         },
-        "parameter_comparison": {
-            "connectome_model": {
-                "name": "ConnectomeMarioPolicy",
-                "trainable_parameters": c_train_stats["trainable_parameters"],
-                "recurrent_hidden_dim": 30000,
-                "recurrent_topology": "Fixed MaleCNS 30,000-neuron CSR (6,001,050 edges)",
-            },
-            "baseline_model": {
-                "name": "BaselineMarioPolicy",
-                "trainable_parameters": b_train_stats["trainable_parameters"],
-                "recurrent_hidden_dim": 1024,
-                "recurrent_topology": "Unconstrained PyTorch GRUCell (dense)",
-            },
-            "parameter_difference": abs(
-                c_train_stats["trainable_parameters"] - b_train_stats["trainable_parameters"]
-            ),
-            "parameter_diff_percent": round(
-                abs(c_train_stats["trainable_parameters"] - b_train_stats["trainable_parameters"])
-                / c_train_stats["trainable_parameters"]
-                * 100,
-                3,
-            ),
-        },
-        "training_results": {
-            "connectome_model": {
-                "best_epoch": c_train_stats["best_epoch"],
-                "best_val_loss": c_train_stats["best_val_loss"],
-                "best_val_acc": c_train_stats["best_val_acc"],
-                "test_loss": round(c_test_loss, 4),
-                "test_acc": round(c_test_acc, 4),
-                "training_time_seconds": c_train_stats["total_training_time_seconds"],
-                "history": c_train_stats["history"],
-            },
-            "baseline_model": {
-                "best_epoch": b_train_stats["best_epoch"],
-                "best_val_loss": b_train_stats["best_val_loss"],
-                "best_val_acc": b_train_stats["best_val_acc"],
-                "test_loss": round(b_test_loss, 4),
-                "test_acc": round(b_test_acc, 4),
-                "training_time_seconds": b_train_stats["total_training_time_seconds"],
-                "history": b_train_stats["history"],
-            },
-        },
-        "closed_loop_evaluation": {
-            "test_seeds": eval_seeds,
-            "connectome_model": c_closed_loop,
-            "baseline_model": b_closed_loop,
-        },
+        "models": {},
     }
+
+    for key in selected_keys:
+        cfg = MODELS_CONFIG[key]
+        report["models"][key] = {
+            "name": cfg["name"],
+            "slug": cfg["slug"],
+            "topology": cfg["topology"],
+            "trainable_parameters": training_stats[key]["trainable_parameters"],
+            "best_epoch": training_stats[key]["best_epoch"],
+            "best_val_loss": training_stats[key]["best_val_loss"],
+            "best_val_acc": training_stats[key]["best_val_acc"],
+            "test_loss": test_eval_results[key]["test_loss"],
+            "test_acc": test_eval_results[key]["test_acc"],
+            "training_time_seconds": training_stats[key]["total_training_time_seconds"],
+            "checkpoint_path": training_stats[key]["checkpoint_path"],
+            "closed_loop_gameplay": closed_loop_results[key],
+        }
 
     out_p = Path(args.output_report)
     with open(out_p, "w") as f:
         json.dump(report, f, indent=2)
 
-    log_dir = Path(args.log_dir)
-    log_dir.mkdir(parents=True, exist_ok=True)
-    summary_log_p = log_dir / "comparative_training_summary.json"
+    summary_log_p = log_dir / "baseline_ablation_summary.json"
     with open(summary_log_p, "w") as f:
         json.dump(report, f, indent=2)
 
-    # Print summary table
-    print("\n" + "=" * 70)
-    print("CONTROLLED EXPERIMENTAL RESULTS SUMMARY")
-    print("=" * 70)
-    print(f"{'Metric':<30} | {'Connectome (30k)':<18} | {'Baseline (GRU-1024)':<18}")
-    print("-" * 70)
-    print(
-        f"{'Trainable Parameters':<30} | {c_train_stats['trainable_parameters']:<18,d} | {b_train_stats['trainable_parameters']:<18,d}"
-    )
-    print(
-        f"{'Best Val Loss':<30} | {c_train_stats['best_val_loss']:<18.4f} | {b_train_stats['best_val_loss']:<18.4f}"
-    )
-    print(
-        f"{'Best Val Accuracy':<30} | {c_train_stats['best_val_acc'] * 100:<17.1f}% | {b_train_stats['best_val_acc'] * 100:<17.1f}%"
-    )
-    print(
-        f"{'Test Loss':<30} | {c_test_loss:<18.4f} | {b_test_loss:<18.4f}"
-    )
-    print(
-        f"{'Test Accuracy':<30} | {c_test_acc * 100:<17.1f}% | {b_test_acc * 100:<17.1f}%"
-    )
-    print("-" * 70)
-    print("Closed-Loop Gameplay on Held-Out Test Seeds:")
-    print(
-        f"{'Mean Final X':<30} | {c_closed_loop['mean_final_x']:<18.1f} | {b_closed_loop['mean_final_x']:<18.1f}"
-    )
-    print(
-        f"{'Mean Reward':<30} | {c_closed_loop['mean_reward']:<18.1f} | {b_closed_loop['mean_reward']:<18.1f}"
-    )
-    print(
-        f"{'Mean Steps':<30} | {c_closed_loop['mean_steps']:<18.1f} | {b_closed_loop['mean_steps']:<18.1f}"
-    )
-    print(
-        f"{'Obstacle 1 Cleared Rate':<30} | {c_closed_loop['first_obstacle_clear_rate'] * 100:<17.1f}% | {b_closed_loop['first_obstacle_clear_rate'] * 100:<17.1f}%"
-    )
-    print(
-        f"{'Action Entropy':<30} | {c_closed_loop['action_entropy']:<18.4f} | {b_closed_loop['action_entropy']:<18.4f}"
-    )
-    print(
-        f"{'Action Proportions':<30} | {str(c_closed_loop['action_proportions']):<18} | {str(b_closed_loop['action_proportions']):<18}"
-    )
-    print("=" * 70)
+    # 7. Print Master Comparison Table
+    print("\n" + "=" * 105)
+    print("PHASE 5: 4-MODEL BASELINES & ABLATION STUDY COMPARATIVE RESULTS")
+    print("=" * 105)
+    header = f"{'Metric':<28} | " + " | ".join(f"{MODELS_CONFIG[k]['slug']:<15}" for k in selected_keys)
+    print(header)
+    print("-" * 105)
+
+    p_row = f"{'Trainable Parameters':<28} | " + " | ".join(f"{training_stats[k]['trainable_parameters']:<15,d}" for k in selected_keys)
+    print(p_row)
+
+    vl_row = f"{'Best Val Loss':<28} | " + " | ".join(f"{training_stats[k]['best_val_loss']:<15.4f}" for k in selected_keys)
+    print(vl_row)
+
+    va_row = f"{'Best Val Accuracy':<28} | " + " | ".join(f"{training_stats[k]['best_val_acc']*100:<14.1f}%" for k in selected_keys)
+    print(va_row)
+
+    tl_row = f"{'Test Split Loss':<28} | " + " | ".join(f"{test_eval_results[k]['test_loss']:<15.4f}" for k in selected_keys)
+    print(tl_row)
+
+    ta_row = f"{'Test Split Accuracy':<28} | " + " | ".join(f"{test_eval_results[k]['test_acc']*100:<14.1f}%" for k in selected_keys)
+    print(ta_row)
+
+    print("-" * 105)
+    print("Closed-Loop Gameplay on Held-Out Test Seeds (Seeds 13, 14, 15):")
+
+    mx_row = f"{'Mean Final X':<28} | " + " | ".join(f"{closed_loop_results[k]['mean_final_x']:<15.1f}" for k in selected_keys)
+    print(mx_row)
+
+    mr_row = f"{'Mean Reward':<28} | " + " | ".join(f"{closed_loop_results[k]['mean_reward']:<15.1f}" for k in selected_keys)
+    print(mr_row)
+
+    ms_row = f"{'Mean Steps':<28} | " + " | ".join(f"{closed_loop_results[k]['mean_steps']:<15.1f}" for k in selected_keys)
+    print(ms_row)
+
+    ob_row = f"{'Obstacle 1 Clear Rate':<28} | " + " | ".join(f"{closed_loop_results[k]['first_obstacle_clear_rate']*100:<14.1f}%" for k in selected_keys)
+    print(ob_row)
+
+    ae_row = f"{'Action Entropy':<28} | " + " | ".join(f"{closed_loop_results[k]['action_entropy']:<15.4f}" for k in selected_keys)
+    print(ae_row)
+
+    print("=" * 105)
     print(f"Report saved to: {out_p}")
+    print(f"Summary saved to: {summary_log_p}")
 
 
 if __name__ == "__main__":
     main()
-
