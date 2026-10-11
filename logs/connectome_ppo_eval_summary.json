@@ -3,8 +3,8 @@
   "training": {
     "total_timesteps": 25088,
     "total_iterations": 49,
-    "best_reward": 850.0,
-    "total_time_seconds": 570.45
+    "best_reward": 98.60000000000096,
+    "total_time_seconds": 560.56
   },
   "evaluation": {
     "mean_final_x": 40.0,
@@ -39,5 +39,5 @@
       }
     ]
   },
-  "timestamp": "2026-10-11T08:09:33Z"
+  "timestamp": "2026-10-11T09:33:48Z"
 }

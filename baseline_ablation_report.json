@@ -1,16 +1,22 @@
 {
-  "timestamp": "2026-10-11T07:31:14Z",
+  "timestamp": "2026-10-11T09:05:09Z",
   "phase": "Phase 5: Baselines & Ablation Study Block",
   "training_configuration": {
     "dataset": "data/demonstrations/scaled_demonstrations.pt",
     "train_samples": 18220,
     "val_samples": 6054,
     "test_samples": 6528,
-    "epochs": 5,
+    "epochs": 15,
     "batch_size": 128,
     "learning_rate": 0.0001,
     "device": "mps",
-    "class_weights": null
+    "class_weights": [
+      2.0,
+      1.0,
+      1.0,
+      1.5,
+      3.5
+    ]
   },
   "models": {
     "connectome": {
@@ -18,12 +24,12 @@
       "slug": "connectome_model",
       "topology": "Fixed MaleCNS 30,000-neuron CSR (6,001,050 edges)",
       "trainable_parameters": 6435987,
-      "best_epoch": 5,
-      "best_val_loss": 0.6212,
-      "best_val_acc": 0.7207,
-      "test_loss": 0.6047,
-      "test_acc": 0.7263,
-      "training_time_seconds": 0.0,
+      "best_epoch": 15,
+      "best_val_loss": 0.7227,
+      "best_val_acc": 0.2745,
+      "test_loss": 0.7762,
+      "test_acc": 0.2716,
+      "training_time_seconds": 511.97,
       "checkpoint_path": "checkpoints/connectome_model_best.pt",
       "closed_loop_gameplay": {
         "mean_final_x": 296.0,
@@ -38,212 +44,17 @@
         "action_entropy": 0.0,
         "action_proportions": {
           "NOOP": 0.0,
-          "RIGHT": 1.0,
+          "RIGHT": 0.0,
           "LEFT": 0.0,
           "JUMP": 0.0,
-          "RIGHT+JUMP": 0.0
+          "RIGHT+JUMP": 1.0
         },
         "action_counts": {
           "NOOP": 0,
-          "RIGHT": 480,
+          "RIGHT": 0,
           "LEFT": 0,
           "JUMP": 0,
-          "RIGHT+JUMP": 0
-        },
-        "episodes": [
-          {
-            "seed": 13,
-            "steps": 160,
-            "final_x": 296,
-            "total_reward": 231.0,
-            "flag_get": false,
-            "cleared_first_obstacle": false
-          },
-          {
-            "seed": 14,
-            "steps": 160,
-            "final_x": 296,
-            "total_reward": 231.0,
-            "flag_get": false,
-            "cleared_first_obstacle": false
-          },
-          {
-            "seed": 15,
-            "steps": 160,
-            "final_x": 296,
-            "total_reward": 231.0,
-            "flag_get": false,
-            "cleared_first_obstacle": false
-          }
-        ]
-      }
-    },
-    "rewired": {
-      "name": "Rewired MaleCNS Policy (Degree-Preserving)",
-      "slug": "rewired_connectome",
-      "topology": "Degree-Preserving Shuffled 30,000-neuron CSR (6,001,050 edges, 98.1% rewired)",
-      "trainable_parameters": 6435987,
-      "best_epoch": 5,
-      "best_val_loss": 0.6216,
-      "best_val_acc": 0.7207,
-      "test_loss": 0.6049,
-      "test_acc": 0.7263,
-      "training_time_seconds": 0.0,
-      "checkpoint_path": "checkpoints/rewired_connectome_best.pt",
-      "closed_loop_gameplay": {
-        "mean_final_x": 296.0,
-        "std_final_x": 0.0,
-        "max_final_x": 296,
-        "min_final_x": 296,
-        "mean_reward": 231.0,
-        "std_reward": 0.0,
-        "mean_steps": 160.0,
-        "first_obstacle_clear_rate": 0.0,
-        "level_clear_rate": 0.0,
-        "action_entropy": 0.0,
-        "action_proportions": {
-          "NOOP": 0.0,
-          "RIGHT": 1.0,
-          "LEFT": 0.0,
-          "JUMP": 0.0,
-          "RIGHT+JUMP": 0.0
-        },
-        "action_counts": {
-          "NOOP": 0,
-          "RIGHT": 480,
-          "LEFT": 0,
-          "JUMP": 0,
-          "RIGHT+JUMP": 0
-        },
-        "episodes": [
-          {
-            "seed": 13,
-            "steps": 160,
-            "final_x": 296,
-            "total_reward": 231.0,
-            "flag_get": false,
-            "cleared_first_obstacle": false
-          },
-          {
-            "seed": 14,
-            "steps": 160,
-            "final_x": 296,
-            "total_reward": 231.0,
-            "flag_get": false,
-            "cleared_first_obstacle": false
-          },
-          {
-            "seed": 15,
-            "steps": 160,
-            "final_x": 296,
-            "total_reward": 231.0,
-            "flag_get": false,
-            "cleared_first_obstacle": false
-          }
-        ]
-      }
-    },
-    "random_sparse": {
-      "name": "Random Sparse Erd\u0151s-R\u00e9nyi Policy (30k Neurons)",
-      "slug": "random_sparse",
-      "topology": "Erd\u0151s-R\u00e9nyi Random Sparse 30,000-neuron CSR (6,001,050 edges)",
-      "trainable_parameters": 6435987,
-      "best_epoch": 5,
-      "best_val_loss": 0.6234,
-      "best_val_acc": 0.7207,
-      "test_loss": 0.6072,
-      "test_acc": 0.7263,
-      "training_time_seconds": 0.0,
-      "checkpoint_path": "checkpoints/random_sparse_best.pt",
-      "closed_loop_gameplay": {
-        "mean_final_x": 296.0,
-        "std_final_x": 0.0,
-        "max_final_x": 296,
-        "min_final_x": 296,
-        "mean_reward": 231.0,
-        "std_reward": 0.0,
-        "mean_steps": 160.0,
-        "first_obstacle_clear_rate": 0.0,
-        "level_clear_rate": 0.0,
-        "action_entropy": 0.0,
-        "action_proportions": {
-          "NOOP": 0.0,
-          "RIGHT": 1.0,
-          "LEFT": 0.0,
-          "JUMP": 0.0,
-          "RIGHT+JUMP": 0.0
-        },
-        "action_counts": {
-          "NOOP": 0,
-          "RIGHT": 480,
-          "LEFT": 0,
-          "JUMP": 0,
-          "RIGHT+JUMP": 0
-        },
-        "episodes": [
-          {
-            "seed": 13,
-            "steps": 160,
-            "final_x": 296,
-            "total_reward": 231.0,
-            "flag_get": false,
-            "cleared_first_obstacle": false
-          },
-          {
-            "seed": 14,
-            "steps": 160,
-            "final_x": 296,
-            "total_reward": 231.0,
-            "flag_get": false,
-            "cleared_first_obstacle": false
-          },
-          {
-            "seed": 15,
-            "steps": 160,
-            "final_x": 296,
-            "total_reward": 231.0,
-            "flag_get": false,
-            "cleared_first_obstacle": false
-          }
-        ]
-      }
-    },
-    "baseline_gru": {
-      "name": "Baseline GRU-1024 Policy (Dense)",
-      "slug": "baseline_gru",
-      "topology": "Unconstrained PyTorch GRUCell (dense 1024)",
-      "trainable_parameters": 6408870,
-      "best_epoch": 5,
-      "best_val_loss": 0.4968,
-      "best_val_acc": 0.7425,
-      "test_loss": 0.477,
-      "test_acc": 0.7469,
-      "training_time_seconds": 0.0,
-      "checkpoint_path": "checkpoints/baseline_gru_best.pt",
-      "closed_loop_gameplay": {
-        "mean_final_x": 296.0,
-        "std_final_x": 0.0,
-        "max_final_x": 296,
-        "min_final_x": 296,
-        "mean_reward": 231.0,
-        "std_reward": 0.0,
-        "mean_steps": 160.0,
-        "first_obstacle_clear_rate": 0.0,
-        "level_clear_rate": 0.0,
-        "action_entropy": 0.5623,
-        "action_proportions": {
-          "NOOP": 0.0,
-          "RIGHT": 0.75,
-          "LEFT": 0.0,
-          "JUMP": 0.0,
-          "RIGHT+JUMP": 0.25
-        },
-        "action_counts": {
-          "NOOP": 0,
-          "RIGHT": 360,
-          "LEFT": 0,
-          "JUMP": 0,
-          "RIGHT+JUMP": 120
+          "RIGHT+JUMP": 480
         },
         "episodes": [
           {
