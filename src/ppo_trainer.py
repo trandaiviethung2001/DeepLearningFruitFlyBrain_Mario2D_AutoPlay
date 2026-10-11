@@ -433,12 +433,27 @@ def main():
         print(f"Loading pretrained weights from {args.checkpoint_in}...")
         ckpt = torch.load(args.checkpoint_in, map_location=device, weights_only=False)
         state_dict = ckpt.get("model_state_dict", ckpt)
-        # Load compatible keys (encoder conv1 may differ if in_channels changed from 1 to 4)
         model_state = model.state_dict()
-        compatible = {k: v for k, v in state_dict.items() if k in model_state and v.shape == model_state[k].shape}
+
+        # Smart weight expansion: transfer 1-channel conv1 to 4-channel conv1
+        if (
+            "encoder.conv1.weight" in state_dict
+            and "encoder.conv1.weight" in model_state
+            and model_state["encoder.conv1.weight"].shape[1] == 4
+            and state_dict["encoder.conv1.weight"].shape[1] == 1
+        ):
+            old_w = state_dict["encoder.conv1.weight"]
+            model_state["encoder.conv1.weight"] = old_w.repeat(1, 4, 1, 1) / 4.0
+            print("   [Transfer] Expanded encoder.conv1.weight from (32, 1, 8, 8) to (32, 4, 8, 8)")
+
+        # Load all other shape-compatible tensors
+        compatible = {
+            k: v for k, v in state_dict.items()
+            if k in model_state and v.shape == model_state[k].shape
+        }
         model_state.update(compatible)
         model.load_state_dict(model_state)
-        print(f"Loaded {len(compatible)}/{len(model_state)} matching parameter tensors.")
+        print(f"   [Transfer] Loaded {len(compatible)}/{len(model_state)} matching parameter tensors.")
 
     ckpt_out = Path(args.checkpoint_out) if args.checkpoint_out else Path(f"checkpoints/{args.model_type}_ppo_best.pt")
     csv_log = Path(args.log_csv) if args.log_csv else Path(f"logs/{args.model_type}_ppo_training_metrics.csv")
@@ -450,12 +465,71 @@ def main():
         lr=args.lr,
     )
 
-    trainer.train(
+    train_stats = trainer.train(
         total_timesteps=args.total_timesteps,
         rollout_steps=args.rollout_steps,
         checkpoint_path=ckpt_out,
         csv_log_path=csv_log,
     )
+
+    # Post-training evaluation on held-out test seeds
+    print("\nEvaluating trained PPO policy on held-out test seeds: [13, 14, 15]...")
+    eval_seeds = [13, 14, 15]
+    eval_results = []
+    model.eval()
+
+    for s in eval_seeds:
+        obs, info = env.reset(seed=s)
+        h = None
+        tot_r = 0.0
+        max_x = info.get("x_pos", 40)
+        steps = 0
+        flag_get = False
+
+        for step in range(2500):
+            inp = obs.unsqueeze(0).to(device)
+            with torch.no_grad():
+                logits, _, h = model(inp, h)
+                action = torch.argmax(logits, dim=-1).item()
+            next_obs, r, term, trunc, info = env.step(action)
+            tot_r += r
+            max_x = max(max_x, info.get("x_pos", 40))
+            flag_get = bool(info.get("flag_get", False))
+            steps = step + 1
+            obs = next_obs
+            if term or trunc:
+                break
+
+        eval_results.append({
+            "seed": s,
+            "steps": steps,
+            "final_x": max_x,
+            "total_reward": round(tot_r, 2),
+            "flag_get": flag_get,
+            "cleared_first_obstacle": max_x > 296,
+        })
+        print(f"  [Seed {s}] Steps: {steps:4d} | Final X: {max_x:4d} | Reward: {tot_r:6.1f} | Cleared Obstacle 1: {max_x > 296} | Flag: {flag_get}")
+
+    xs = [r["final_x"] for r in eval_results]
+    rs = [r["total_reward"] for r in eval_results]
+    eval_summary = {
+        "mean_final_x": round(float(np.mean(xs)), 2),
+        "max_final_x": int(np.max(xs)),
+        "mean_reward": round(float(np.mean(rs)), 2),
+        "first_obstacle_clear_rate": round(float(np.mean([r["cleared_first_obstacle"] for r in eval_results])), 2),
+        "level_clear_rate": round(float(np.mean([r["flag_get"] for r in eval_results])), 2),
+        "episodes": eval_results,
+    }
+
+    report_p = Path(f"logs/{args.model_type}_ppo_eval_summary.json")
+    with open(report_p, "w") as f:
+        json.dump({
+            "model_type": args.model_type,
+            "training": train_stats,
+            "evaluation": eval_summary,
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        }, f, indent=2)
+    print(f"\nSaved evaluation summary to: {report_p}")
     env.close()
 
 

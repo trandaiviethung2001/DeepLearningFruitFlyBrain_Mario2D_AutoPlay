@@ -1,0 +1,43 @@
+{
+  "model_type": "baseline",
+  "training": {
+    "total_timesteps": 25088,
+    "total_iterations": 49,
+    "best_reward": 496.0,
+    "total_time_seconds": 161.82
+  },
+  "evaluation": {
+    "mean_final_x": 296.0,
+    "max_final_x": 296,
+    "mean_reward": 231.0,
+    "first_obstacle_clear_rate": 0.0,
+    "level_clear_rate": 0.0,
+    "episodes": [
+      {
+        "seed": 13,
+        "steps": 160,
+        "final_x": 296,
+        "total_reward": 231.0,
+        "flag_get": false,
+        "cleared_first_obstacle": false
+      },
+      {
+        "seed": 14,
+        "steps": 160,
+        "final_x": 296,
+        "total_reward": 231.0,
+        "flag_get": false,
+        "cleared_first_obstacle": false
+      },
+      {
+        "seed": 15,
+        "steps": 160,
+        "final_x": 296,
+        "total_reward": 231.0,
+        "flag_get": false,
+        "cleared_first_obstacle": false
+      }
+    ]
+  },
+  "timestamp": "2026-10-11T07:57:51Z"
+}
