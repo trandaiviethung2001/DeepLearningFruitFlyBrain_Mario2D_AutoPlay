@@ -108,30 +108,30 @@ class DopamineRewardShaper:
 
         dopamine = 0.0
 
-        # 1. Forward velocity momentum
+        # 1. Forward velocity momentum (scaled)
         if dx > 0:
-            dopamine += float(dx) * 1.5
+            dopamine += float(dx) * 0.1
             self.stagnant_steps = 0
         else:
             self.stagnant_steps += 1
             # Aversive signal against zero progress / jumping in place
-            dopamine -= 1.0
+            dopamine -= 0.1
             if self.stagnant_steps > 25:
-                dopamine -= 2.5
+                dopamine -= 0.25
 
-        # 2. Obstacle milestone bonus
+        # 2. Obstacle milestone bonus (scaled)
         for m in self.milestones:
             if cur_x >= m and m not in self.milestones_reached:
                 self.milestones_reached.add(m)
-                dopamine += 50.0
+                dopamine += 5.0
 
         # 3. Winning Dopamine (Flagpole)
         if info.get("flag_get", False):
-            dopamine += 1000.0
+            dopamine += 50.0
 
         # 4. Premature death penalty
         if done and not info.get("flag_get", False):
-            dopamine -= 30.0
+            dopamine -= 2.0
 
         shaped_r = float(raw_reward * 0.1 + dopamine)
         return shaped_r, {"dopamine": dopamine, "dx": float(dx), "stagnant_steps": float(self.stagnant_steps)}
@@ -190,7 +190,7 @@ class PPOTrainer:
         gae_lambda: float = 0.95,
         clip_eps: float = 0.2,
         vf_coef: float = 0.5,
-        ent_coef: float = 0.01,
+        ent_coef: float = 0.05,
         max_grad_norm: float = 0.5,
         use_dopamine: bool = True,
     ):
@@ -489,6 +489,7 @@ def main():
         action="store_false",
         help="Disable dopamine reward shaping and use raw environment rewards",
     )
+    parser.add_argument("--ent-coef", type=float, default=0.05, help="Entropy coefficient for exploration")
     args = parser.parse_args()
 
     device = torch.device(
@@ -546,6 +547,7 @@ def main():
         env=env,
         device=device,
         lr=args.lr,
+        ent_coef=args.ent_coef,
         use_dopamine=args.use_dopamine,
     )
 

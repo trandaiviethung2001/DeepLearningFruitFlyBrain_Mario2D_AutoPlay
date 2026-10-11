@@ -136,11 +136,11 @@ class TestPPOTrainer(unittest.TestCase):
 
         # Step 3: Milestone crossing (x=350)
         r3, d3 = shaper.shape(raw_reward=10.0, info={"x_pos": 360}, done=False)
-        self.assertGreater(d3["dopamine"], 50.0)
+        self.assertGreater(d3["dopamine"], 5.0)
 
         # Step 4: Winning Flagpole touch
         r4, d4 = shaper.shape(raw_reward=50.0, info={"x_pos": 3161, "flag_get": True}, done=True)
-        self.assertGreaterEqual(d4["dopamine"], 1000.0)
+        self.assertGreaterEqual(d4["dopamine"], 50.0)
 
 
 def run_ppo_trainer_tests() -> bool:
