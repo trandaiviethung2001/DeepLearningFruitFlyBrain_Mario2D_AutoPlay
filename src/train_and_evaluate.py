@@ -224,6 +224,7 @@ def train_model(
     device: torch.device,
     checkpoint_path: Path,
     class_weights: Optional[torch.Tensor] = None,
+    log_dir: Optional[Path] = None,
 ) -> Dict[str, Any]:
     """Train a single model and track best validation checkpoint."""
     print(f"\n{'=' * 60}")
@@ -241,15 +242,26 @@ def train_model(
     )
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
+    # Initialize CSV logger if log_dir provided
+    csv_file = None
+    if log_dir is not None:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        slug = "connectome_model" if "Connectome" in model_name else "baseline_gru"
+        csv_file = log_dir / f"{slug}_training_metrics.csv"
+        with open(csv_file, "w") as f:
+            f.write("epoch,train_loss,train_acc,val_loss,val_acc,lr,epoch_duration_sec,samples_per_sec,is_best,timestamp\n")
+
     best_val_loss = float("inf")
     history = {"train_loss": [], "train_acc": [], "val_loss": [], "val_acc": []}
     t_start = time.time()
+    n_train_samples = len(train_loader.dataset)
 
     for epoch in range(1, epochs + 1):
         ep_t0 = time.time()
         tr_loss, tr_acc = train_one_epoch(model, train_loader, optimizer, criterion, device)
         v_loss, v_acc = evaluate_loss(model, val_loader, criterion, device)
         ep_duration = time.time() - ep_t0
+        samples_per_sec = round(n_train_samples / ep_duration, 2) if ep_duration > 0 else 0.0
 
         history["train_loss"].append(round(tr_loss, 4))
         history["train_acc"].append(round(tr_acc, 4))
@@ -267,9 +279,15 @@ def train_model(
                     "val_loss": v_loss,
                     "val_acc": v_acc,
                     "model_name": model_name,
+                    "history": history,
                 },
                 checkpoint_path,
             )
+
+        if csv_file is not None:
+            ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+            with open(csv_file, "a") as f:
+                f.write(f"{epoch},{tr_loss:.4f},{tr_acc:.4f},{v_loss:.4f},{v_acc:.4f},{lr},{ep_duration:.2f},{samples_per_sec},{str(is_best).lower()},{ts}\n")
 
         best_mark = " [*BEST*]" if is_best else ""
         print(
@@ -313,6 +331,12 @@ def main() -> None:
         type=str,
         default="comparative_evaluation_report.json",
         help="Output report path",
+    )
+    parser.add_argument(
+        "--log-dir",
+        type=str,
+        default="logs",
+        help="Directory to save per-epoch CSV metrics, logs, and summaries",
     )
     parser.add_argument(
         "--eval-only",
@@ -424,6 +448,7 @@ def main() -> None:
         }
     else:
         # 4. Train Connectome Model
+        log_dir = Path(args.log_dir)
         c_train_stats = train_model(
             model_name="MaleCNS Connectome Policy (30k Neurons)",
             model=connectome_model,
@@ -434,6 +459,7 @@ def main() -> None:
             device=device,
             checkpoint_path=c_ckpt_path,
             class_weights=weights,
+            log_dir=log_dir,
         )
 
         # 5. Train Baseline GRU Model
@@ -447,6 +473,7 @@ def main() -> None:
             device=device,
             checkpoint_path=b_ckpt_path,
             class_weights=weights,
+            log_dir=log_dir,
         )
 
     # 6. Evaluate on Held-Out Test Set (Loss & Accuracy)
@@ -530,6 +557,12 @@ def main() -> None:
 
     out_p = Path(args.output_report)
     with open(out_p, "w") as f:
+        json.dump(report, f, indent=2)
+
+    log_dir = Path(args.log_dir)
+    log_dir.mkdir(parents=True, exist_ok=True)
+    summary_log_p = log_dir / "comparative_training_summary.json"
+    with open(summary_log_p, "w") as f:
         json.dump(report, f, indent=2)
 
     # Print summary table
