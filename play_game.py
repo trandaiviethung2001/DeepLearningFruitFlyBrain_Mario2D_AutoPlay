@@ -56,6 +56,9 @@ def run_visual_episode(
     fps: int = 25,
     temperature: float = 0.5,
     jump_hold: int = 8,
+    loop: bool = False,
+    episodes: int = 1,
+    keep_open: bool = False,
 ) -> None:
     device = torch.device(
         "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
@@ -112,89 +115,108 @@ def run_visual_episode(
     else:
         raise ValueError(f"Unknown model type: {model_type}")
 
-    # Reset environment
-    obs, info = env.reset(seed=seed)
-    h: Optional[torch.Tensor] = None
-
+    ep_idx = 0
+    total_steps_all = 0
+    start_time = time.time()
     frames_for_gif: List[Image.Image] = []
     action_counts = {name: 0 for name in ACTION_NAMES}
-    total_reward = 0.0
-    max_x = info.get("x_pos", 40)
-    flag_get = False
-    jump_timer = 0
 
-    print("\nStarting gameplay execution...\n")
-    start_time = time.time()
+    while True:
+        ep_idx += 1
+        current_seed = (seed + ep_idx - 1) if seed is not None else None
+        obs, info = env.reset(seed=current_seed)
+        h: Optional[torch.Tensor] = None
+        jump_timer = 0
+        total_reward = 0.0
+        max_x = info.get("x_pos", 40)
+        flag_get = False
 
-    for step in range(1, max_steps + 1):
-        step_t0 = time.time()
+        print(f"\n--- Starting Episode {ep_idx} (Seed: {current_seed}) ---")
 
-        # Decide Action
-        if teacher is not None:
-            action = teacher.get_action(obs, info, env.ram)
-        else:
-            if jump_timer > 0:
-                jump_timer -= 1
-                action = 4  # Sustain RIGHT+JUMP to achieve full jump parabola
+        for step in range(1, max_steps + 1):
+            step_t0 = time.time()
+            total_steps_all += 1
+
+            # Decide Action
+            if teacher is not None:
+                action = teacher.get_action(obs, info, env.ram)
             else:
-                inp = obs.unsqueeze(0).to(device)
-                with torch.no_grad():
-                    logits, _, h = model(inp, h)
-                    if temperature > 0.0:
-                        dist = torch.distributions.Categorical(logits=logits / temperature)
-                        action = dist.sample().item()
-                    else:
-                        action = torch.argmax(logits, dim=-1).item()
-                if action in (3, 4) and jump_hold > 0:
-                    action = 4
-                    jump_timer = jump_hold
+                if jump_timer > 0:
+                    jump_timer -= 1
+                    action = 4  # Sustain RIGHT+JUMP to achieve full jump parabola
+                else:
+                    inp = obs.unsqueeze(0).to(device)
+                    with torch.no_grad():
+                        logits, _, h = model(inp, h)
+                        if temperature > 0.0:
+                            dist = torch.distributions.Categorical(logits=logits / temperature)
+                            action = dist.sample().item()
+                        else:
+                            action = torch.argmax(logits, dim=-1).item()
+                    if action in (3, 4) and jump_hold > 0:
+                        action = 4
+                        jump_timer = jump_hold
 
-        action_name = ACTION_NAMES[action]
-        action_counts[action_name] += 1
+            action_name = ACTION_NAMES[action]
+            action_counts[action_name] += 1
 
-        # Step environment
-        next_obs, reward, terminated, truncated, info = env.step(action)
-        total_reward += reward
-        cur_x = info.get("x_pos", 40)
-        max_x = max(max_x, cur_x)
-        flag_get = bool(info.get("flag_get", False))
+            # Step environment
+            next_obs, reward, terminated, truncated, info = env.step(action)
+            total_reward += reward
+            cur_x = info.get("x_pos", 40)
+            max_x = max(max_x, cur_x)
+            flag_get = bool(info.get("flag_get", False))
 
-        # Record visual frame for GIF
-        if save_gif_path:
-            # Capture raw NES RGB screen every frame (or alternate frame for speed/size)
-            if step % 2 == 0:
-                raw_screen = env.env.unwrapped.screen
-                if raw_screen is not None:
-                    # Convert to PIL Image
-                    img = Image.fromarray(raw_screen)
-                    frames_for_gif.append(img)
+            # Record visual frame for GIF
+            if save_gif_path and ep_idx == 1:
+                if step % 2 == 0:
+                    raw_screen = env.env.unwrapped.screen
+                    if raw_screen is not None:
+                        img = Image.fromarray(raw_screen)
+                        frames_for_gif.append(img)
 
-        # Optional live screen rendering
-        if render_gui:
-            env.env.render()
-            # Pacing
-            elapsed = time.time() - step_t0
-            sleep_time = max(0.0, (1.0 / fps) - elapsed)
-            time.sleep(sleep_time)
+            # Optional live screen rendering
+            if render_gui:
+                env.env.render()
+                elapsed = time.time() - step_t0
+                sleep_time = max(0.0, (1.0 / fps) - elapsed)
+                time.sleep(sleep_time)
 
-        # Print terminal progress update every 10 steps or at landmark events
-        if step % 10 == 0 or terminated or truncated or flag_get:
-            bar_text = render_terminal_bar(cur_x, action_name, step, total_reward)
-            sys.stdout.write(f"\r{bar_text}")
-            sys.stdout.flush()
+            # Print terminal progress update every 10 steps or at landmark events
+            if step % 10 == 0 or terminated or truncated or flag_get:
+                bar_text = render_terminal_bar(cur_x, action_name, step, total_reward)
+                sys.stdout.write(f"\r{bar_text}")
+                sys.stdout.flush()
 
-        obs = next_obs
-        if terminated or truncated or flag_get:
+            obs = next_obs
+            if terminated or truncated or flag_get:
+                break
+
+        print(f"\nEpisode {ep_idx} Complete: Final X = {max_x} | Reward = {total_reward:.1f} | Cleared Obstacle 1: {max_x > 296}")
+
+        if not loop and ep_idx >= episodes:
             break
 
+        if render_gui:
+            print("🔄 Auto-respawning Mario in 1.5 seconds...")
+            time.sleep(1.5)
+
     total_duration = time.time() - start_time
+    if keep_open and render_gui:
+        print("\n\n🎮 Gameplay complete! Press ENTER in this terminal to close game window...")
+        try:
+            input()
+        except (EOFError, KeyboardInterrupt):
+            pass
+
     env.close()
 
-    print("\n\n" + "=" * 70)
+    print("\n" + "=" * 70)
     print("🏁 GAMEPLAY RUN SUMMARY")
     print("=" * 70)
-    print(f"Total Steps:        {step:,} steps")
-    print(f"Elapsed Time:       {total_duration:.2f} seconds ({step / total_duration:.1f} FPS)")
+    print(f"Total Episodes:     {ep_idx}")
+    print(f"Total Steps:        {total_steps_all:,} steps")
+    print(f"Elapsed Time:       {total_duration:.2f} seconds")
     print(f"Final Mario X:      {max_x} / {WORLD_1_1_LENGTH} pixels ({(max_x/WORLD_1_1_LENGTH)*100:.1f}% World 1-1)")
     print(f"Accumulated Reward: {total_reward:.1f}")
     print(f"First Obstacle:     {'CLEARED (x > 296)' if max_x > 296 else 'FAILED'}")
@@ -233,6 +255,9 @@ def main():
     parser.add_argument("--fps", type=int, default=30, help="Target playback FPS when rendering")
     parser.add_argument("--temperature", type=float, default=0.5, help="Action sampling temperature (0 for argmax)")
     parser.add_argument("--jump-hold", type=int, default=8, help="Number of frames to sustain jump button for full jump arc")
+    parser.add_argument("--loop", action="store_true", help="Continuously loop episodes (auto-respawn on death)")
+    parser.add_argument("--episodes", type=int, default=1, help="Number of episodes to play")
+    parser.add_argument("--keep-open", action="store_true", help="Keep game window open until user presses Enter")
     args = parser.parse_args()
 
     run_visual_episode(
@@ -246,6 +271,9 @@ def main():
         fps=args.fps,
         temperature=args.temperature,
         jump_hold=args.jump_hold,
+        loop=args.loop,
+        episodes=args.episodes,
+        keep_open=args.keep_open,
     )
 
 
