@@ -1,57 +1,57 @@
 {
-  "timestamp": "2026-10-11T08:40:22Z",
+  "timestamp": "2026-10-11T09:38:01Z",
   "overall_status": "PASS",
-  "total_duration_seconds": 30.259,
+  "total_duration_seconds": 29.309,
   "tests": {
     "TEST_A_ENVIRONMENT": {
       "description": "Mario Gymnasium Environment Verification",
       "status": "PASS",
-      "duration_seconds": 0.167
+      "duration_seconds": 0.277
     },
     "TEST_B_DATA_PIPELINE": {
       "description": "Real MaleCNS Connectome Pipeline Verification",
       "status": "PASS",
-      "duration_seconds": 1.297
+      "duration_seconds": 0.915
     },
     "TEST_C_MODEL_STEP": {
       "description": "Model Forward & Backward Step with Fixed Connectome",
       "status": "PASS",
-      "duration_seconds": 2.29
+      "duration_seconds": 1.412
     },
     "TEST_D_INTEGRATION": {
       "description": "End-to-End Observation-to-Action 100 Steps",
       "status": "PASS",
-      "duration_seconds": 6.281
+      "duration_seconds": 6.031
     },
     "TEST_E_TRAINING": {
       "description": "Short Behavioral Cloning Smoke Test",
       "status": "PASS",
-      "duration_seconds": 5.393
+      "duration_seconds": 5.698
     },
     "TEST_F_INFERENCE": {
       "description": "Local Inference Benchmark on Apple Silicon (MPS)",
       "status": "PASS",
-      "duration_seconds": 2.191
+      "duration_seconds": 3.299
     },
     "TEST_G_DEMONSTRATION": {
       "description": "Demonstration Collector & Dataset Validation",
       "status": "PASS",
-      "duration_seconds": 1.244
+      "duration_seconds": 1.216
     },
     "TEST_H_COMPARATIVE": {
       "description": "Comparative Training Pipeline & Parity Verification",
       "status": "PASS",
-      "duration_seconds": 3.852
+      "duration_seconds": 3.384
     },
     "TEST_I_GRAPH_BASELINES": {
       "description": "Graph Baselines (Rewired & Random Sparse) Invariants & Parity",
       "status": "PASS",
-      "duration_seconds": 6.576
+      "duration_seconds": 6.2
     },
     "TEST_J_PPO_TRAINER": {
       "description": "PPO Reinforcement Learning Rollout, GAE & Gradient Step",
       "status": "PASS",
-      "duration_seconds": 0.969
+      "duration_seconds": 0.877
     }
   },
   "hardware": {
