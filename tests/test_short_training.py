@@ -127,26 +127,32 @@ def run_short_training_test(num_samples: int = 50, epochs: int = 10) -> bool:
     print(f"Final Val Loss:      {final_val_loss:.4f}")
     print(f"Absolute Reduction:  {improvement:.4f} ({(improvement/initial_val_loss)*100:.1f}%)")
 
-    # 4. Save checkpoint
+    # 4. Save checkpoint & verify serializability
     checkpoints_dir = REPO_ROOT / "checkpoints"
     checkpoints_dir.mkdir(parents=True, exist_ok=True)
     ckpt_path = checkpoints_dir / "connectome_mario_smoke_ckpt.pt"
-    torch.save(
-        {
-            "model_state_dict": model.state_dict(),
-            "train_loss": train_losses[-1],
-            "val_loss": final_val_loss,
-            "epochs": epochs,
-        },
-        ckpt_path,
-    )
-    print(f"   [Saved] Checkpoint to {ckpt_path.name} ({ckpt_path.stat().st_size / 1024 / 1024:.2f} MB)")
+    try:
+        torch.save(
+            {
+                "model_state_dict": model.state_dict(),
+                "train_loss": train_losses[-1],
+                "val_loss": final_val_loss,
+                "epochs": epochs,
+            },
+            ckpt_path,
+        )
+        print(f"   [Saved] Checkpoint to {ckpt_path.name} ({ckpt_path.stat().st_size / 1024 / 1024:.2f} MB)")
+        assert ckpt_path.is_file(), "Checkpoint file was not created"
 
-    # Assert verifiable learning (loss must strictly decrease)
-    assert final_val_loss < initial_val_loss, (
-        f"Validation loss did not improve: initial={initial_val_loss:.4f}, final={final_val_loss:.4f}"
-    )
-    assert torch.isfinite(torch.tensor(final_val_loss))
+        # Assert verifiable learning (loss must strictly decrease)
+        assert final_val_loss < initial_val_loss, (
+            f"Validation loss did not improve: initial={initial_val_loss:.4f}, final={final_val_loss:.4f}"
+        )
+        assert torch.isfinite(torch.tensor(final_val_loss))
+    finally:
+        if ckpt_path.exists():
+            ckpt_path.unlink()
+            print(f"   [Cleaned] Removed temporary smoke checkpoint {ckpt_path.name}")
 
     print("TEST E RESULT: PASS\n")
     return True

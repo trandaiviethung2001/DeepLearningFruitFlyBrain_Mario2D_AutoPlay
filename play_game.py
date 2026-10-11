@@ -49,16 +49,14 @@ def run_visual_episode(
     model_type: str = "connectome",
     checkpoint_path: Optional[str] = None,
     render_gui: bool = False,
-    save_gif_path: Optional[str] = "gameplay_replay.gif",
+    save_gif_path: Optional[str] = None,
     frame_stack: int = 4,
     max_steps: int = 2000,
     seed: int = 1,
-    fps: int = 25,
+    fps: int = 30,
     temperature: float = 0.5,
     jump_hold: int = 8,
-    loop: bool = False,
     episodes: int = 1,
-    keep_open: bool = False,
 ) -> None:
     device = torch.device(
         "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
@@ -70,6 +68,7 @@ def run_visual_episode(
     print(f"Model Type:      {model_type.upper()}")
     print(f"Execution Device:{device}")
     print(f"Frame Stacking:  {frame_stack} frames")
+    print(f"Episodes:        {episodes}")
     print(f"GUI Rendering:   {'ENABLED (Live Screen)' if render_gui else 'DISABLED (Use --render to enable)'}")
     print(f"GIF Export:      {save_gif_path if save_gif_path else 'None'}")
     print("=" * 70)
@@ -115,14 +114,15 @@ def run_visual_episode(
     else:
         raise ValueError(f"Unknown model type: {model_type}")
 
-    ep_idx = 0
     total_steps_all = 0
     start_time = time.time()
     frames_for_gif: List[Image.Image] = []
     action_counts = {name: 0 for name in ACTION_NAMES}
+    last_max_x = 40
+    last_total_reward = 0.0
+    last_flag_get = False
 
-    while True:
-        ep_idx += 1
+    for ep_idx in range(1, episodes + 1):
         current_seed = (seed + ep_idx - 1) if seed is not None else None
         obs, info = env.reset(seed=current_seed)
         h: Optional[torch.Tensor] = None
@@ -131,7 +131,7 @@ def run_visual_episode(
         max_x = info.get("x_pos", 40)
         flag_get = False
 
-        print(f"\n--- Starting Episode {ep_idx} (Seed: {current_seed}) ---")
+        print(f"\n--- Episode {ep_idx}/{episodes} (Seed: {current_seed}) ---")
 
         for step in range(1, max_steps + 1):
             step_t0 = time.time()
@@ -167,13 +167,11 @@ def run_visual_episode(
             max_x = max(max_x, cur_x)
             flag_get = bool(info.get("flag_get", False))
 
-            # Record visual frame for GIF
-            if save_gif_path and ep_idx == 1:
-                if step % 2 == 0:
-                    raw_screen = env.env.unwrapped.screen
-                    if raw_screen is not None:
-                        img = Image.fromarray(raw_screen)
-                        frames_for_gif.append(img)
+            # Record visual frame for GIF (if requested, first episode only)
+            if save_gif_path and ep_idx == 1 and step % 2 == 0:
+                raw_screen = env.env.unwrapped.screen
+                if raw_screen is not None:
+                    frames_for_gif.append(Image.fromarray(raw_screen))
 
             # Optional live screen rendering
             if render_gui:
@@ -182,7 +180,7 @@ def run_visual_episode(
                 sleep_time = max(0.0, (1.0 / fps) - elapsed)
                 time.sleep(sleep_time)
 
-            # Print terminal progress update every 10 steps or at landmark events
+            # Terminal progress update
             if step % 10 == 0 or terminated or truncated or flag_get:
                 bar_text = render_terminal_bar(cur_x, action_name, step, total_reward)
                 sys.stdout.write(f"\r{bar_text}")
@@ -192,35 +190,24 @@ def run_visual_episode(
             if terminated or truncated or flag_get:
                 break
 
+        last_max_x = max_x
+        last_total_reward = total_reward
+        last_flag_get = flag_get
         print(f"\nEpisode {ep_idx} Complete: Final X = {max_x} | Reward = {total_reward:.1f} | Cleared Obstacle 1: {max_x > 296}")
 
-        if not loop and ep_idx >= episodes:
-            break
-
-        if render_gui:
-            print("🔄 Auto-respawning Mario in 1.5 seconds...")
-            time.sleep(1.5)
-
     total_duration = time.time() - start_time
-    if keep_open and render_gui:
-        print("\n\n🎮 Gameplay complete! Press ENTER in this terminal to close game window...")
-        try:
-            input()
-        except (EOFError, KeyboardInterrupt):
-            pass
-
     env.close()
 
     print("\n" + "=" * 70)
     print("🏁 GAMEPLAY RUN SUMMARY")
     print("=" * 70)
-    print(f"Total Episodes:     {ep_idx}")
+    print(f"Total Episodes:     {episodes}")
     print(f"Total Steps:        {total_steps_all:,} steps")
     print(f"Elapsed Time:       {total_duration:.2f} seconds")
-    print(f"Final Mario X:      {max_x} / {WORLD_1_1_LENGTH} pixels ({(max_x/WORLD_1_1_LENGTH)*100:.1f}% World 1-1)")
-    print(f"Accumulated Reward: {total_reward:.1f}")
-    print(f"First Obstacle:     {'CLEARED (x > 296)' if max_x > 296 else 'FAILED'}")
-    print(f"Flagpole Touch:     {'VICTORY (Touched Flagpole!)' if flag_get else 'No'}")
+    print(f"Final Mario X:      {last_max_x} / {WORLD_1_1_LENGTH} pixels ({(last_max_x/WORLD_1_1_LENGTH)*100:.1f}% World 1-1)")
+    print(f"Accumulated Reward: {last_total_reward:.1f}")
+    print(f"First Obstacle:     {'CLEARED (x > 296)' if last_max_x > 296 else 'FAILED'}")
+    print(f"Flagpole Touch:     {'VICTORY (Touched Flagpole!)' if last_flag_get else 'No'}")
     print(f"Action Breakdown:   {action_counts}")
     print("=" * 70)
 
@@ -229,18 +216,16 @@ def run_visual_episode(
         gif_file = Path(save_gif_path)
         gif_file.parent.mkdir(parents=True, exist_ok=True)
         print(f"\nEncoding animated GIF ({len(frames_for_gif)} frames at 15 FPS)...")
-        # Save GIF with Pillow
         frames_for_gif[0].save(
             str(gif_file),
             save_all=True,
             append_images=frames_for_gif[1:],
-            duration=66,  # ~15 FPS
+            duration=66,
             loop=0,
             optimize=True,
         )
         print(f"✨ Successfully saved gameplay replay to: {gif_file.resolve()}")
         print(f"   Size: {gif_file.stat().st_size / 1024 / 1024:.2f} MB")
-        print(f"   👉 You can open this file in VS Code or double-click to view in Finder!")
 
 
 def main():
@@ -248,16 +233,14 @@ def main():
     parser.add_argument("--model", type=str, default="connectome", choices=["connectome", "baseline", "demonstrator"])
     parser.add_argument("--checkpoint", type=str, default=None, help="Path to checkpoint file")
     parser.add_argument("--render", action="store_true", help="Enable live GUI window rendering on screen")
-    parser.add_argument("--save-gif", type=str, default="gameplay_replay.gif", help="Path to save animated GIF")
+    parser.add_argument("--save-gif", type=str, default=None, help="Path to save animated GIF (optional)")
+    parser.add_argument("--episodes", type=int, default=1, help="Number of episodes to play")
     parser.add_argument("--seed", type=int, default=1, help="Environment seed")
     parser.add_argument("--max-steps", type=int, default=2000, help="Max steps per episode")
     parser.add_argument("--frame-stack", type=int, default=4, help="Frame stack count (1 or 4)")
     parser.add_argument("--fps", type=int, default=30, help="Target playback FPS when rendering")
     parser.add_argument("--temperature", type=float, default=0.5, help="Action sampling temperature (0 for argmax)")
     parser.add_argument("--jump-hold", type=int, default=8, help="Number of frames to sustain jump button for full jump arc")
-    parser.add_argument("--loop", action="store_true", help="Continuously loop episodes (auto-respawn on death)")
-    parser.add_argument("--episodes", type=int, default=1, help="Number of episodes to play")
-    parser.add_argument("--keep-open", action="store_true", help="Keep game window open until user presses Enter")
     args = parser.parse_args()
 
     run_visual_episode(
@@ -271,9 +254,7 @@ def main():
         fps=args.fps,
         temperature=args.temperature,
         jump_hold=args.jump_hold,
-        loop=args.loop,
         episodes=args.episodes,
-        keep_open=args.keep_open,
     )
 
 
