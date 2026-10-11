@@ -41,3 +41,7 @@ checkpoints/
 *.pt
 *.pth
 *.ckpt
+
+# Recorded gameplay media
+*.gif
+*.mp4
