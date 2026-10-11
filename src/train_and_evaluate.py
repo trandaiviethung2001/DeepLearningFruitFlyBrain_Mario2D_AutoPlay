@@ -279,6 +279,7 @@ def train_model(
         lr=lr,
         weight_decay=1e-5,
     )
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs, eta_min=1e-5)
     criterion = nn.CrossEntropyLoss(weight=class_weights)
 
     # Initialize CSV logger if log_dir provided
@@ -323,10 +324,13 @@ def train_model(
                 checkpoint_path,
             )
 
+        scheduler.step()
+        cur_lr = optimizer.param_groups[0]["lr"]
+
         if csv_file is not None:
             ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
             with open(csv_file, "a") as f:
-                f.write(f"{epoch},{tr_loss:.4f},{tr_acc:.4f},{v_loss:.4f},{v_acc:.4f},{lr},{ep_duration:.2f},{samples_per_sec},{str(is_best).lower()},{ts}\n")
+                f.write(f"{epoch},{tr_loss:.4f},{tr_acc:.4f},{v_loss:.4f},{v_acc:.4f},{cur_lr:.6f},{ep_duration:.2f},{samples_per_sec},{str(is_best).lower()},{ts}\n")
 
         best_mark = " [*BEST*]" if is_best else ""
         print(
@@ -468,17 +472,10 @@ def main() -> None:
     # Class weighting
     weights = None
     if args.use_class_weights:
-        train_acts = ds["actions"][train_mask]
-        counts = torch.bincount(train_acts, minlength=5).float()
-        weights = torch.zeros(5, dtype=torch.float32, device=device)
-        for c in range(5):
-            if counts[c] > 0:
-                weights[c] = float(len(train_acts)) / (5.0 * counts[c])
-            else:
-                weights[c] = 0.0
-        active = weights > 0
-        weights[active] = weights[active] / weights[active].mean()
-        print(f"Normalized class weights: {weights.tolist()}")
+        # Balanced weights that strongly incentivize jumping (Action 4: RIGHT+JUMP) over pure running (Action 1: RIGHT)
+        # Actions: 0: NOOP, 1: RIGHT, 2: LEFT, 3: JUMP, 4: RIGHT+JUMP
+        weights = torch.tensor([2.0, 1.0, 1.0, 1.5, 3.5], dtype=torch.float32, device=device)
+        print(f"Using calibrated class weights for Mario visuomotor jump incentive: {weights.tolist()}")
     else:
         print("Using standard unweighted CrossEntropyLoss")
 

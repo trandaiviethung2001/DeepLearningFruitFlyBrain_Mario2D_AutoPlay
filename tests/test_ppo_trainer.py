@@ -119,6 +119,29 @@ class TestPPOTrainer(unittest.TestCase):
         self.assertIsInstance(roll_stats["mean_reward"], float)
         self.assertIsInstance(b_val, float)
 
+    def test_dopamine_reward_shaper(self):
+        """DopamineRewardShaper properly rewards forward progress, milestones, and flag win."""
+        from src.ppo_trainer import DopamineRewardShaper
+        shaper = DopamineRewardShaper()
+
+        # Step 1: Forward movement
+        r1, d1 = shaper.shape(raw_reward=10.0, info={"x_pos": 60}, done=False)
+        self.assertGreater(d1["dopamine"], 0.0)
+        self.assertAlmostEqual(d1["dx"], 20.0)
+
+        # Step 2: Stagnant step
+        r2, d2 = shaper.shape(raw_reward=0.0, info={"x_pos": 60}, done=False)
+        self.assertLess(d2["dopamine"], 0.0)
+        self.assertEqual(d2["stagnant_steps"], 1.0)
+
+        # Step 3: Milestone crossing (x=350)
+        r3, d3 = shaper.shape(raw_reward=10.0, info={"x_pos": 360}, done=False)
+        self.assertGreater(d3["dopamine"], 50.0)
+
+        # Step 4: Winning Flagpole touch
+        r4, d4 = shaper.shape(raw_reward=50.0, info={"x_pos": 3161, "flag_get": True}, done=True)
+        self.assertGreaterEqual(d4["dopamine"], 1000.0)
+
 
 def run_ppo_trainer_tests() -> bool:
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestPPOTrainer)

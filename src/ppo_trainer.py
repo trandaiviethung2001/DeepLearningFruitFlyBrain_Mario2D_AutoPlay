@@ -76,6 +76,67 @@ def compute_gae(
     return advantages, returns
 
 
+class DopamineRewardShaper:
+    """Biologically-inspired Dopaminergic Neuromodulation & Reward Shaping.
+
+    Simulates Drosophila melanogaster dopaminergic reinforcement pathways:
+    - Appetitive Dopamine (PAM-cluster neurons):
+      * Winning Dopamine (flagpole touch / level completion): +1000.0
+      * Obstacle Milestone Dopamine (passing pipes and gaps): +50.0 to +100.0
+      * Forward Velocity Momentum: +1.5 * max(0, dx)
+    - Aversive Dopamine (PPL1-cluster neurons):
+      * Anti-Stagnation Penalty: -1.0 per stationary step, -2.5 if stuck > 25 steps
+      * Death Penalty: -30.0 upon premature death
+    """
+
+    def __init__(self):
+        self.prev_x = 40
+        self.stagnant_steps = 0
+        self.milestones_reached: set[int] = set()
+        # World 1-1 Key Landmark Milestones in Super Mario Bros:
+        self.milestones = [350, 500, 680, 900, 1250, 1600, 2000, 2400, 3000]
+
+    def reset(self) -> None:
+        self.prev_x = 40
+        self.stagnant_steps = 0
+        self.milestones_reached.clear()
+
+    def shape(self, raw_reward: float, info: Dict[str, Any], done: bool) -> Tuple[float, Dict[str, float]]:
+        cur_x = info.get("x_pos", self.prev_x)
+        dx = cur_x - self.prev_x
+        self.prev_x = cur_x
+
+        dopamine = 0.0
+
+        # 1. Forward velocity momentum
+        if dx > 0:
+            dopamine += float(dx) * 1.5
+            self.stagnant_steps = 0
+        else:
+            self.stagnant_steps += 1
+            # Aversive signal against zero progress / jumping in place
+            dopamine -= 1.0
+            if self.stagnant_steps > 25:
+                dopamine -= 2.5
+
+        # 2. Obstacle milestone bonus
+        for m in self.milestones:
+            if cur_x >= m and m not in self.milestones_reached:
+                self.milestones_reached.add(m)
+                dopamine += 50.0
+
+        # 3. Winning Dopamine (Flagpole)
+        if info.get("flag_get", False):
+            dopamine += 1000.0
+
+        # 4. Premature death penalty
+        if done and not info.get("flag_get", False):
+            dopamine -= 30.0
+
+        shaped_r = float(raw_reward * 0.1 + dopamine)
+        return shaped_r, {"dopamine": dopamine, "dx": float(dx), "stagnant_steps": float(self.stagnant_steps)}
+
+
 class RolloutBuffer:
     """Buffer storing on-policy rollout transitions for PPO update."""
 
@@ -131,6 +192,7 @@ class PPOTrainer:
         vf_coef: float = 0.5,
         ent_coef: float = 0.01,
         max_grad_norm: float = 0.5,
+        use_dopamine: bool = True,
     ):
         self.model = model.to(device)
         self.env = env
@@ -141,6 +203,8 @@ class PPOTrainer:
         self.vf_coef = vf_coef
         self.ent_coef = ent_coef
         self.max_grad_norm = max_grad_norm
+        self.use_dopamine = use_dopamine
+        self.dopamine_shaper = DopamineRewardShaper() if use_dopamine else None
 
         self.optimizer = torch.optim.Adam(
             filter(lambda p: p.requires_grad, self.model.parameters()),
@@ -180,14 +244,19 @@ class PPOTrainer:
             next_obs, r, terminated, truncated, info = self.env.step(action)
             done = terminated or truncated
 
-            cur_ep_reward += r
+            if self.dopamine_shaper is not None:
+                step_reward, _ = self.dopamine_shaper.shape(r, info, done)
+            else:
+                step_reward = r
+
+            cur_ep_reward += step_reward
             cur_ep_len += 1
             max_x = max(max_x, info.get("x_pos", 40))
 
             buffer.add(
                 obs=obs,
                 action=action,
-                reward=r,
+                reward=step_reward,
                 done=done,
                 value=value,
                 log_prob=log_prob,
@@ -199,6 +268,8 @@ class PPOTrainer:
                 cur_ep_reward = 0.0
                 cur_ep_len = 0
                 obs, _ = self.env.reset()
+                if self.dopamine_shaper is not None:
+                    self.dopamine_shaper.reset()
                 h = None  # Reset hidden state at episode boundary
             else:
                 obs = next_obs
@@ -406,6 +477,18 @@ def main():
     parser.add_argument("--checkpoint-in", type=str, default=None, help="Initial pretrained checkpoint path")
     parser.add_argument("--checkpoint-out", type=str, default=None, help="Output checkpoint save path")
     parser.add_argument("--log-csv", type=str, default=None, help="CSV metrics log path")
+    parser.add_argument(
+        "--use-dopamine",
+        action="store_true",
+        default=True,
+        help="Enable dopaminergic reward shaping (winning dopamine, milestones, velocity momentum)",
+    )
+    parser.add_argument(
+        "--no-dopamine",
+        dest="use_dopamine",
+        action="store_false",
+        help="Disable dopamine reward shaping and use raw environment rewards",
+    )
     args = parser.parse_args()
 
     device = torch.device(
@@ -463,6 +546,7 @@ def main():
         env=env,
         device=device,
         lr=args.lr,
+        use_dopamine=args.use_dopamine,
     )
 
     train_stats = trainer.train(
