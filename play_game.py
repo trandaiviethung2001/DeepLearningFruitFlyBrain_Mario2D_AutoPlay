@@ -55,6 +55,7 @@ def run_visual_episode(
     seed: int = 1,
     fps: int = 25,
     temperature: float = 0.5,
+    jump_hold: int = 8,
 ) -> None:
     device = torch.device(
         "mps" if torch.backends.mps.is_available() else ("cuda" if torch.cuda.is_available() else "cpu")
@@ -120,6 +121,7 @@ def run_visual_episode(
     total_reward = 0.0
     max_x = info.get("x_pos", 40)
     flag_get = False
+    jump_timer = 0
 
     print("\nStarting gameplay execution...\n")
     start_time = time.time()
@@ -131,14 +133,21 @@ def run_visual_episode(
         if teacher is not None:
             action = teacher.get_action(obs, info, env.ram)
         else:
-            inp = obs.unsqueeze(0).to(device)
-            with torch.no_grad():
-                logits, _, h = model(inp, h)
-                if temperature > 0.0:
-                    dist = torch.distributions.Categorical(logits=logits / temperature)
-                    action = dist.sample().item()
-                else:
-                    action = torch.argmax(logits, dim=-1).item()
+            if jump_timer > 0:
+                jump_timer -= 1
+                action = 4  # Sustain RIGHT+JUMP to achieve full jump parabola
+            else:
+                inp = obs.unsqueeze(0).to(device)
+                with torch.no_grad():
+                    logits, _, h = model(inp, h)
+                    if temperature > 0.0:
+                        dist = torch.distributions.Categorical(logits=logits / temperature)
+                        action = dist.sample().item()
+                    else:
+                        action = torch.argmax(logits, dim=-1).item()
+                if action in (3, 4) and jump_hold > 0:
+                    action = 4
+                    jump_timer = jump_hold
 
         action_name = ACTION_NAMES[action]
         action_counts[action_name] += 1
@@ -223,6 +232,7 @@ def main():
     parser.add_argument("--frame-stack", type=int, default=4, help="Frame stack count (1 or 4)")
     parser.add_argument("--fps", type=int, default=30, help="Target playback FPS when rendering")
     parser.add_argument("--temperature", type=float, default=0.5, help="Action sampling temperature (0 for argmax)")
+    parser.add_argument("--jump-hold", type=int, default=8, help="Number of frames to sustain jump button for full jump arc")
     args = parser.parse_args()
 
     run_visual_episode(
@@ -235,6 +245,7 @@ def main():
         seed=args.seed,
         fps=args.fps,
         temperature=args.temperature,
+        jump_hold=args.jump_hold,
     )
 
 
