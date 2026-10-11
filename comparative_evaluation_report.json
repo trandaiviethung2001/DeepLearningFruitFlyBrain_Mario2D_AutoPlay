@@ -1,0 +1,162 @@
+{
+  "timestamp": "2026-10-10T19:39:04Z",
+  "phase": "Phase 4B: Controlled Comparative Training & Evaluation",
+  "training_configuration": {
+    "dataset": "data/demonstrations/scaled_demonstrations.pt",
+    "train_samples": 18220,
+    "val_samples": 6054,
+    "test_samples": 6528,
+    "epochs": 5,
+    "batch_size": 128,
+    "learning_rate": 0.0001,
+    "device": "mps",
+    "class_weights": null
+  },
+  "parameter_comparison": {
+    "connectome_model": {
+      "name": "ConnectomeMarioPolicy",
+      "trainable_parameters": 6435987,
+      "recurrent_hidden_dim": 30000,
+      "recurrent_topology": "Fixed MaleCNS 30,000-neuron CSR (6,001,050 edges)"
+    },
+    "baseline_model": {
+      "name": "BaselineMarioPolicy",
+      "trainable_parameters": 6408870,
+      "recurrent_hidden_dim": 1024,
+      "recurrent_topology": "Unconstrained PyTorch GRUCell (dense)"
+    },
+    "parameter_difference": 27117,
+    "parameter_diff_percent": 0.421
+  },
+  "training_results": {
+    "connectome_model": {
+      "best_epoch": 5,
+      "best_val_loss": 0.6212,
+      "best_val_acc": 0.7207,
+      "test_loss": 0.6047,
+      "test_acc": 0.7263,
+      "training_time_seconds": 173.62,
+      "history": {}
+    },
+    "baseline_model": {
+      "best_epoch": 5,
+      "best_val_loss": 0.4968,
+      "best_val_acc": 0.7425,
+      "test_loss": 0.477,
+      "test_acc": 0.7469,
+      "training_time_seconds": 30.43,
+      "history": {}
+    }
+  },
+  "closed_loop_evaluation": {
+    "test_seeds": [
+      13,
+      14,
+      15
+    ],
+    "connectome_model": {
+      "mean_final_x": 296.0,
+      "std_final_x": 0.0,
+      "max_final_x": 296,
+      "min_final_x": 296,
+      "mean_reward": 231.0,
+      "std_reward": 0.0,
+      "mean_steps": 160.0,
+      "first_obstacle_clear_rate": 0.0,
+      "level_clear_rate": 0.0,
+      "action_entropy": 0.0,
+      "action_proportions": {
+        "NOOP": 0.0,
+        "RIGHT": 1.0,
+        "LEFT": 0.0,
+        "JUMP": 0.0,
+        "RIGHT+JUMP": 0.0
+      },
+      "action_counts": {
+        "NOOP": 0,
+        "RIGHT": 480,
+        "LEFT": 0,
+        "JUMP": 0,
+        "RIGHT+JUMP": 0
+      },
+      "episodes": [
+        {
+          "seed": 13,
+          "steps": 160,
+          "final_x": 296,
+          "total_reward": 231.0,
+          "flag_get": false,
+          "cleared_first_obstacle": false
+        },
+        {
+          "seed": 14,
+          "steps": 160,
+          "final_x": 296,
+          "total_reward": 231.0,
+          "flag_get": false,
+          "cleared_first_obstacle": false
+        },
+        {
+          "seed": 15,
+          "steps": 160,
+          "final_x": 296,
+          "total_reward": 231.0,
+          "flag_get": false,
+          "cleared_first_obstacle": false
+        }
+      ]
+    },
+    "baseline_model": {
+      "mean_final_x": 296.0,
+      "std_final_x": 0.0,
+      "max_final_x": 296,
+      "min_final_x": 296,
+      "mean_reward": 231.0,
+      "std_reward": 0.0,
+      "mean_steps": 160.0,
+      "first_obstacle_clear_rate": 0.0,
+      "level_clear_rate": 0.0,
+      "action_entropy": 0.5623,
+      "action_proportions": {
+        "NOOP": 0.0,
+        "RIGHT": 0.75,
+        "LEFT": 0.0,
+        "JUMP": 0.0,
+        "RIGHT+JUMP": 0.25
+      },
+      "action_counts": {
+        "NOOP": 0,
+        "RIGHT": 360,
+        "LEFT": 0,
+        "JUMP": 0,
+        "RIGHT+JUMP": 120
+      },
+      "episodes": [
+        {
+          "seed": 13,
+          "steps": 160,
+          "final_x": 296,
+          "total_reward": 231.0,
+          "flag_get": false,
+          "cleared_first_obstacle": false
+        },
+        {
+          "seed": 14,
+          "steps": 160,
+          "final_x": 296,
+          "total_reward": 231.0,
+          "flag_get": false,
+          "cleared_first_obstacle": false
+        },
+        {
+          "seed": 15,
+          "steps": 160,
+          "final_x": 296,
+          "total_reward": 231.0,
+          "flag_get": false,
+          "cleared_first_obstacle": false
+        }
+      ]
+    }
+  }
+}

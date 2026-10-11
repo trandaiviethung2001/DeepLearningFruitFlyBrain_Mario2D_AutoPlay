@@ -1,0 +1,51 @@
+{
+  "timestamp": "2026-10-10T19:32:31Z",
+  "overall_status": "PASS",
+  "total_duration_seconds": 19.594,
+  "tests": {
+    "TEST_A_ENVIRONMENT": {
+      "description": "Mario Gymnasium Environment Verification",
+      "status": "PASS",
+      "duration_seconds": 0.163
+    },
+    "TEST_B_DATA_PIPELINE": {
+      "description": "Real MaleCNS Connectome Pipeline Verification",
+      "status": "PASS",
+      "duration_seconds": 0.855
+    },
+    "TEST_C_MODEL_STEP": {
+      "description": "Model Forward & Backward Step with Fixed Connectome",
+      "status": "PASS",
+      "duration_seconds": 1.303
+    },
+    "TEST_D_INTEGRATION": {
+      "description": "End-to-End Observation-to-Action 100 Steps",
+      "status": "PASS",
+      "duration_seconds": 5.736
+    },
+    "TEST_E_TRAINING": {
+      "description": "Short Behavioral Cloning Smoke Test",
+      "status": "PASS",
+      "duration_seconds": 4.556
+    },
+    "TEST_F_INFERENCE": {
+      "description": "Local Inference Benchmark on Apple Silicon (MPS)",
+      "status": "PASS",
+      "duration_seconds": 2.56
+    },
+    "TEST_G_DEMONSTRATION": {
+      "description": "Demonstration Collector & Dataset Validation",
+      "status": "PASS",
+      "duration_seconds": 1.159
+    },
+    "TEST_H_COMPARATIVE": {
+      "description": "Comparative Training Pipeline & Parity Verification",
+      "status": "PASS",
+      "duration_seconds": 3.262
+    }
+  },
+  "hardware": {
+    "platform": "darwin",
+    "python_version": "3.13.9"
+  }
+}

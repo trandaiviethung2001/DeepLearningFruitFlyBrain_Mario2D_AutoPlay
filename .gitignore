@@ -1,4 +1,43 @@
-data/__pycache__
-.venv
-.pytest_cache
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+.venv/
+env/
+venv/
+ENV/
+
+# Testing & caches
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+.mypy_cache/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Large raw datasets (Feather files > 1GB)
 data/*.feather
+data/*.parquet
+data/*.tar.gz
+data/*.zip
+
+# Large processed connectome graph artifacts (>10MB - 200MB)
+data/processed/
+!data/processed/.gitkeep
+
+# Large demonstration trajectory tensors (>70MB - 200MB)
+data/demonstrations/
+!data/demonstrations/.gitkeep
+
+# Model checkpoints (>20MB - 140MB)
+checkpoints/
+!checkpoints/.gitkeep
+*.pt
+*.pth
+*.ckpt
