@@ -1,0 +1,20 @@
+{
+  "n_nodes": 30000,
+  "n_edges": 6001050,
+  "n_visual_projection": 9201,
+  "n_descending": 1314,
+  "self_loops": 20,
+  "row_sum_stats": {
+    "min_nonzero": 0.9999997615814209,
+    "max": 1.000000238418579,
+    "zero_rows": 31
+  },
+  "dn_reachable_from_any_vp": 1314,
+  "vp_with_path_to_some_dn": 9170,
+  "dn_hop_distance_from_vp": {
+    "1": 880,
+    "2": 434
+  },
+  "dn_reachable_within_2_hops": 1314,
+  "dn_reachable_within_1_hop": 880
+}

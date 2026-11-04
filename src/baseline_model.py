@@ -37,7 +37,8 @@ class BaselineMarioPolicy(nn.Module):
         self,
         obs: torch.Tensor,
         h: torch.Tensor | None = None,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        return_telemetry: bool = False,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor] | Tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict]:
         if h is None:
             h = self.init_hidden(obs.shape[0], obs.device)
 
@@ -50,6 +51,13 @@ class BaselineMarioPolicy(nn.Module):
         # 3. Action logits & value estimation
         logits = self.actor(h_next)
         value = self.critic(h_next)
+
+        if return_telemetry:
+            telemetry = {
+                "features": features.detach(),
+                "h_core": h_next.detach(),
+            }
+            return logits, value, h_next, telemetry
 
         return logits, value, h_next
 

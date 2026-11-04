@@ -120,27 +120,37 @@ class TestPPOTrainer(unittest.TestCase):
         self.assertIsInstance(b_val, float)
 
     def test_dopamine_reward_shaper(self):
-        """DopamineRewardShaper properly rewards forward progress, milestones, and flag win."""
+        """DopamineRewardShaper properly rewards forward progress, score, coins, powerup, and flag win."""
         from src.ppo_trainer import DopamineRewardShaper
-        shaper = DopamineRewardShaper()
+        shaper = DopamineRewardShaper(jump_penalty=0.1, score_scale=0.01, coin_scale=1.0, powerup_bonus=5.0, flag_time_scale=0.05)
+        shaper.reset(initial_x=40, initial_score=0, initial_coins=0, initial_status="small")
 
-        # Step 1: Forward movement
-        r1, d1 = shaper.shape(raw_reward=10.0, info={"x_pos": 60}, done=False)
+        # Step 1: Forward movement + jump action
+        r1, d1 = shaper.shape(raw_reward=10.0, info={"x_pos": 60, "score": 0, "coins": 0, "status": "small"}, done=False, action=2)
         self.assertGreater(d1["dopamine"], 0.0)
         self.assertAlmostEqual(d1["dx"], 20.0)
 
-        # Step 2: Stagnant step
-        r2, d2 = shaper.shape(raw_reward=0.0, info={"x_pos": 60}, done=False)
+        # Step 2: Stagnant step without jump
+        r2, d2 = shaper.shape(raw_reward=0.0, info={"x_pos": 60, "score": 0, "coins": 0, "status": "small"}, done=False, action=0)
         self.assertLess(d2["dopamine"], 0.0)
         self.assertEqual(d2["stagnant_steps"], 1.0)
 
-        # Step 3: Milestone crossing (x=350)
-        r3, d3 = shaper.shape(raw_reward=10.0, info={"x_pos": 360}, done=False)
-        self.assertGreater(d3["dopamine"], 5.0)
+        # Step 3: Enemy stomp (+200 score) & coin hit (+1 coin)
+        r3, d3 = shaper.shape(raw_reward=0.0, info={"x_pos": 60, "score": 200, "coins": 1, "status": "small"}, done=False, action=0)
+        self.assertAlmostEqual(d3["score_gain"], 2.0)
+        self.assertAlmostEqual(d3["coins_gain"], 1.0)
+        self.assertGreater(d3["dopamine"], 2.5)
 
-        # Step 4: Winning Flagpole touch
-        r4, d4 = shaper.shape(raw_reward=50.0, info={"x_pos": 3161, "flag_get": True}, done=True)
-        self.assertGreaterEqual(d4["dopamine"], 50.0)
+        # Step 4: Mushroom collection (small -> tall)
+        r4, d4 = shaper.shape(raw_reward=0.0, info={"x_pos": 60, "score": 1200, "coins": 1, "status": "tall"}, done=False, action=0)
+        self.assertAlmostEqual(d4["powerup_gain"], 5.0)
+        self.assertAlmostEqual(d4["score_gain"], 10.0)
+
+        # Step 5: Winning Flagpole touch with time bonus
+        r5, d5 = shaper.shape(raw_reward=50.0, info={"x_pos": 3161, "score": 1200, "coins": 1, "status": "tall", "flag_get": True, "time": 350}, done=True, action=1)
+        self.assertGreaterEqual(d5["flag_bonus"], 50.0)
+        self.assertAlmostEqual(d5["time_bonus"], 350 * 0.05)
+        self.assertGreaterEqual(d5["dopamine"], 65.0)
 
 
 def run_ppo_trainer_tests() -> bool:

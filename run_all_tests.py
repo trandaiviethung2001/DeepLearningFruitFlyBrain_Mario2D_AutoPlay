@@ -24,6 +24,9 @@ from tests.test_demonstration_dataset import run_demonstration_tests
 from tests.test_comparative_training import run_comparative_training_tests
 from tests.test_graph_baselines import run_graph_baseline_tests
 from tests.test_ppo_trainer import run_ppo_trainer_tests
+from tests.test_macro_actions import run_macro_action_tests
+from tests.test_recurrent_ppo import run_recurrent_ppo_tests
+from tests.test_ablation_metrics import run_ablation_metrics_tests
 
 
 TEST_SUITE = [
@@ -37,6 +40,9 @@ TEST_SUITE = [
     ("TEST_H_COMPARATIVE", "Comparative Training Pipeline & Parity Verification", run_comparative_training_tests),
     ("TEST_I_GRAPH_BASELINES", "Graph Baselines (Rewired & Random Sparse) Invariants & Parity", run_graph_baseline_tests),
     ("TEST_J_PPO_TRAINER", "PPO Reinforcement Learning Rollout, GAE & Gradient Step", run_ppo_trainer_tests),
+    ("TEST_K_MACRO_ACTIONS", "Macro-Action Jump Wrapper & NES Hardware Auto-Unlatching", run_macro_action_tests),
+    ("TEST_L_RECURRENT_BPTT", "Truncated BPTT Sequence-Chunked Recurrent PPO Training", run_recurrent_ppo_tests),
+    ("TEST_M_ABLATION_METRICS", "Scientific Ablation Metrics, Welch t-test & Telemetry Canvas", run_ablation_metrics_tests),
 ]
 
 

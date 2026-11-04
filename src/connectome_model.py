@@ -153,17 +153,20 @@ class ConnectomeMarioPolicy(nn.Module):
         obs: torch.Tensor,
         h: torch.Tensor,
         num_ticks: int = 2,
-    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        return_telemetry: bool = False,
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor] | Tuple[torch.Tensor, torch.Tensor, torch.Tensor, dict]:
         """Forward step.
 
         Args:
             obs: (B, 1, 84, 84) observation tensor
             h: (B, N) previous recurrent state
             num_ticks: number of internal connectome recurrent message passing ticks per frame
+            return_telemetry: if True, returns internal activations dictionary
         Returns:
             logits: (B, 5) action logits
             value: (B, 1) state value estimate
             h_next: (B, N) updated recurrent state
+            telemetry: (optional) dict of internal activations
         """
         B = obs.size(0)
         # 1. CNN visual encoding
@@ -180,12 +183,25 @@ class ConnectomeMarioPolicy(nn.Module):
         if h is None:
             h = self.init_hidden(B, obs.device)
         h_current = h
+        tick_states = []
         for _ in range(num_ticks):
             h_current = self.rnn(u_in, h_current)
+            if return_telemetry:
+                tick_states.append(h_current.detach())
 
         # 4. Motor readout from descending neurons
         motor_activity = h_current[:, self.motor_indices]
         logits = self.actor(motor_activity)
         value = self.critic(motor_activity)
+
+        if return_telemetry:
+            telemetry = {
+                "features": features.detach(),
+                "sensory_drive": sensory_drive.detach(),
+                "h_core": h_current.detach(),
+                "motor_activity": motor_activity.detach(),
+                "tick_states": tick_states,
+            }
+            return logits, value, h_current, telemetry
 
         return logits, value, h_current

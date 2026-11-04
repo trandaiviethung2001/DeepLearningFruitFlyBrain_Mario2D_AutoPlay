@@ -1,0 +1,48 @@
+{
+  "seed_changes_dynamics": false,
+  "hold_right_jump": {
+    "max_x": 296,
+    "takeoffs": 1,
+    "steps": 160,
+    "died": true,
+    "max_y": 143
+  },
+  "right_only": {
+    "max_x": 296,
+    "steps": 160,
+    "terminated": true,
+    "life": 2
+  },
+  "jump_height_by_hold_frames": {
+    "1": 24,
+    "2": 27,
+    "4": 33,
+    "8": 44,
+    "16": 58,
+    "32": 64
+  },
+  "pulse_right_jump_20on_1off": {
+    "max_x": 1125,
+    "takeoffs": 12,
+    "steps": 729
+  },
+  "obs_last_channel_matches_screen": true,
+  "obs_shape": [
+    4,
+    84,
+    84
+  ],
+  "obs_dtype": "torch.float32",
+  "obs_range": [
+    0.12156862765550613,
+    0.9882352948188782
+  ],
+  "adjacent_stack_frames_identical_frac": 0.8231292366981506,
+  "right_only_reward": {
+    "total": 231.0,
+    "reward_while_not_progressing": 0.0,
+    "non_progress_steps": 7,
+    "final_x": 296,
+    "terminated": true
+  }
+}
