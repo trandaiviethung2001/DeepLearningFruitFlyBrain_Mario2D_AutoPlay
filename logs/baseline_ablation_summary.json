@@ -1,0 +1,88 @@
+{
+  "timestamp": "2026-10-11T09:05:09Z",
+  "phase": "Phase 5: Baselines & Ablation Study Block",
+  "training_configuration": {
+    "dataset": "data/demonstrations/scaled_demonstrations.pt",
+    "train_samples": 18220,
+    "val_samples": 6054,
+    "test_samples": 6528,
+    "epochs": 15,
+    "batch_size": 128,
+    "learning_rate": 0.0001,
+    "device": "mps",
+    "class_weights": [
+      2.0,
+      1.0,
+      1.0,
+      1.5,
+      3.5
+    ]
+  },
+  "models": {
+    "connectome": {
+      "name": "MaleCNS Connectome Policy (30k Neurons)",
+      "slug": "connectome_model",
+      "topology": "Fixed MaleCNS 30,000-neuron CSR (6,001,050 edges)",
+      "trainable_parameters": 6435987,
+      "best_epoch": 15,
+      "best_val_loss": 0.7227,
+      "best_val_acc": 0.2745,
+      "test_loss": 0.7762,
+      "test_acc": 0.2716,
+      "training_time_seconds": 511.97,
+      "checkpoint_path": "checkpoints/connectome_model_best.pt",
+      "closed_loop_gameplay": {
+        "mean_final_x": 296.0,
+        "std_final_x": 0.0,
+        "max_final_x": 296,
+        "min_final_x": 296,
+        "mean_reward": 231.0,
+        "std_reward": 0.0,
+        "mean_steps": 160.0,
+        "first_obstacle_clear_rate": 0.0,
+        "level_clear_rate": 0.0,
+        "action_entropy": 0.0,
+        "action_proportions": {
+          "NOOP": 0.0,
+          "RIGHT": 0.0,
+          "LEFT": 0.0,
+          "JUMP": 0.0,
+          "RIGHT+JUMP": 1.0
+        },
+        "action_counts": {
+          "NOOP": 0,
+          "RIGHT": 0,
+          "LEFT": 0,
+          "JUMP": 0,
+          "RIGHT+JUMP": 480
+        },
+        "episodes": [
+          {
+            "seed": 13,
+            "steps": 160,
+            "final_x": 296,
+            "total_reward": 231.0,
+            "flag_get": false,
+            "cleared_first_obstacle": false
+          },
+          {
+            "seed": 14,
+            "steps": 160,
+            "final_x": 296,
+            "total_reward": 231.0,
+            "flag_get": false,
+            "cleared_first_obstacle": false
+          },
+          {
+            "seed": 15,
+            "steps": 160,
+            "final_x": 296,
+            "total_reward": 231.0,
+            "flag_get": false,
+            "cleared_first_obstacle": false
+          }
+        ]
+      }
+    }
+  }
+}

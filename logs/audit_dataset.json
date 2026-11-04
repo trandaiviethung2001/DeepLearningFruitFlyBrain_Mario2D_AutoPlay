@@ -1,0 +1,104 @@
+{
+  "path": "/Users/trandaiviethung/Desktop/DeepLearningFruitFlyBrain /data/demonstrations/scaled_demonstrations.pt",
+  "n_frames": 30802,
+  "obs_shape": [
+    1,
+    84,
+    84
+  ],
+  "n_episodes": 15,
+  "action_distribution": {
+    "NOOP": 0.0038,
+    "RIGHT": 0.7242,
+    "LEFT": 0.0,
+    "JUMP": 0.0,
+    "RIGHT+JUMP": 0.272
+  },
+  "metadata_keys": [
+    "num_transitions",
+    "num_episodes",
+    "collection_time_seconds",
+    "action_space",
+    "action_names",
+    "splits",
+    "overall_action_counts",
+    "episodes"
+  ],
+  "splits": {
+    "train_seeds": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9
+    ],
+    "val_seeds": [
+      10,
+      11,
+      12
+    ],
+    "test_seeds": [
+      13,
+      14,
+      15
+    ]
+  },
+  "consecutive_mean_abs_pixel_diff": {
+    "median": 2.638747215270996,
+    "p10": 0.06831065565347672
+  },
+  "consecutive_exact_duplicates_frac": 0.021047845482826233,
+  "unique_frames_frac": 0.6691,
+  "frames_with_conflicting_labels_frac": 0.0104,
+  "jump_runs": {
+    "count": 387,
+    "mean_len": 21.645994832041342,
+    "min": 11,
+    "max": 24
+  },
+  "jump_onset_frames_frac_of_all": 0.0126,
+  "action_by_region": {
+    "pre_goomba_200_296": {
+      "NOOP": 0,
+      "RIGHT": 570,
+      "LEFT": 0,
+      "JUMP": 0,
+      "RIGHT+JUMP": 255
+    },
+    "pipe1_380_440": {
+      "NOOP": 0,
+      "RIGHT": 435,
+      "LEFT": 0,
+      "JUMP": 0,
+      "RIGHT+JUMP": 270
+    },
+    "flat_100_200": {
+      "NOOP": 0,
+      "RIGHT": 855,
+      "LEFT": 0,
+      "JUMP": 0,
+      "RIGHT+JUMP": 0
+    }
+  },
+  "episode_max_x": {
+    "0": 3161,
+    "1": 3161,
+    "2": 2470,
+    "3": 3161,
+    "4": 3161,
+    "5": 3161,
+    "6": 2471,
+    "7": 3161,
+    "8": 2469,
+    "9": 3161,
+    "10": 2470,
+    "11": 3161,
+    "12": 3161,
+    "13": 3161,
+    "14": 3161
+  }
+}

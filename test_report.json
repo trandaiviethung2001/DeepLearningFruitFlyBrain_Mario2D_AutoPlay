@@ -1,0 +1,76 @@
+{
+  "timestamp": "2026-10-27T17:10:12Z",
+  "overall_status": "PASS",
+  "total_duration_seconds": 37.835,
+  "tests": {
+    "TEST_A_ENVIRONMENT": {
+      "description": "Mario Gymnasium Environment Verification",
+      "status": "PASS",
+      "duration_seconds": 0.168
+    },
+    "TEST_B_DATA_PIPELINE": {
+      "description": "Real MaleCNS Connectome Pipeline Verification",
+      "status": "PASS",
+      "duration_seconds": 0.783
+    },
+    "TEST_C_MODEL_STEP": {
+      "description": "Model Forward & Backward Step with Fixed Connectome",
+      "status": "PASS",
+      "duration_seconds": 1.513
+    },
+    "TEST_D_INTEGRATION": {
+      "description": "End-to-End Observation-to-Action 100 Steps",
+      "status": "PASS",
+      "duration_seconds": 6.382
+    },
+    "TEST_E_TRAINING": {
+      "description": "Short Behavioral Cloning Smoke Test",
+      "status": "PASS",
+      "duration_seconds": 5.556
+    },
+    "TEST_F_INFERENCE": {
+      "description": "Local Inference Benchmark on Apple Silicon (MPS)",
+      "status": "PASS",
+      "duration_seconds": 2.264
+    },
+    "TEST_G_DEMONSTRATION": {
+      "description": "Demonstration Collector & Dataset Validation",
+      "status": "PASS",
+      "duration_seconds": 1.146
+    },
+    "TEST_H_COMPARATIVE": {
+      "description": "Comparative Training Pipeline & Parity Verification",
+      "status": "PASS",
+      "duration_seconds": 3.127
+    },
+    "TEST_I_GRAPH_BASELINES": {
+      "description": "Graph Baselines (Rewired & Random Sparse) Invariants & Parity",
+      "status": "PASS",
+      "duration_seconds": 5.898
+    },
+    "TEST_J_PPO_TRAINER": {
+      "description": "PPO Reinforcement Learning Rollout, GAE & Gradient Step",
+      "status": "PASS",
+      "duration_seconds": 0.616
+    },
+    "TEST_K_MACRO_ACTIONS": {
+      "description": "Macro-Action Jump Wrapper & NES Hardware Auto-Unlatching",
+      "status": "PASS",
+      "duration_seconds": 1.807
+    },
+    "TEST_L_RECURRENT_BPTT": {
+      "description": "Truncated BPTT Sequence-Chunked Recurrent PPO Training",
+      "status": "PASS",
+      "duration_seconds": 4.838
+    },
+    "TEST_M_ABLATION_METRICS": {
+      "description": "Scientific Ablation Metrics, Welch t-test & Telemetry Canvas",
+      "status": "PASS",
+      "duration_seconds": 3.737
+    }
+  },
+  "hardware": {
+    "platform": "darwin",
+    "python_version": "3.13.9"
+  }
+}
