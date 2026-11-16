@@ -45,3 +45,9 @@ checkpoints/
 # Recorded gameplay media
 *.gif
 *.mp4
+
+# Gemini / IDE metadata
+.gemini/
+
+# Compressed archives
+*.zip
