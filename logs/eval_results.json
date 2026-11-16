@@ -1,0 +1,330 @@
+[
+  {
+    "agent": "connectome_ppo_v2_latest[sample]",
+    "frame_skip": 4,
+    "frame_stack": 4,
+    "protocol": {
+      "seeds": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004
+      ],
+      "max_episode_frames": 5000,
+      "stall_frames": 600,
+      "noop_max": 30
+    },
+    "summary": {
+      "n_episodes": 5,
+      "return_mean": 774.0,
+      "return_std": 348.87,
+      "max_x_mean": 879.2,
+      "max_x_std": 382.0,
+      "max_x_best": 1421,
+      "death_rate": 1.0,
+      "truncation_rate": 0.0,
+      "completion_rate": 0.0,
+      "action_dist": {
+        "NOOP": 0.169,
+        "RIGHT": 0.224,
+        "LEFT": 0.018,
+        "JUMP": 0.16,
+        "RIGHT+JUMP": 0.429
+      },
+      "action_entropy_nats": 1.364,
+      "clear_rate_goomba1": 0.8,
+      "clear_rate_pipe1": 0.8,
+      "clear_rate_pipe2": 0.8,
+      "clear_rate_pipe3": 0.6,
+      "clear_rate_pipe4": 0.4,
+      "clear_rate_pit1": 0.2
+    },
+    "episodes": [
+      {
+        "seed": 1000,
+        "return": 231.0,
+        "max_x": 295,
+        "agent_steps": 43,
+        "frames": 170,
+        "flag_get": false,
+        "death": true,
+        "truncated": false,
+        "truncation_reason": null,
+        "action_counts": [
+          7,
+          9,
+          0,
+          6,
+          21
+        ],
+        "cleared_goomba1": false,
+        "cleared_pipe1": false,
+        "cleared_pipe2": false,
+        "cleared_pipe3": false,
+        "cleared_pipe4": false,
+        "cleared_pit1": false
+      },
+      {
+        "seed": 1001,
+        "return": 1262.0,
+        "max_x": 1421,
+        "agent_steps": 510,
+        "frames": 2040,
+        "flag_get": false,
+        "death": true,
+        "truncated": false,
+        "truncation_reason": null,
+        "action_counts": [
+          90,
+          125,
+          8,
+          72,
+          215
+        ],
+        "cleared_goomba1": true,
+        "cleared_pipe1": true,
+        "cleared_pipe2": true,
+        "cleared_pipe3": true,
+        "cleared_pipe4": true,
+        "cleared_pit1": true
+      },
+      {
+        "seed": 1002,
+        "return": 612.0,
+        "max_x": 693,
+        "agent_steps": 117,
+        "frames": 468,
+        "flag_get": false,
+        "death": true,
+        "truncated": false,
+        "truncation_reason": null,
+        "action_counts": [
+          11,
+          19,
+          4,
+          25,
+          58
+        ],
+        "cleared_goomba1": true,
+        "cleared_pipe1": true,
+        "cleared_pipe2": true,
+        "cleared_pipe3": false,
+        "cleared_pipe4": false,
+        "cleared_pit1": false
+      },
+      {
+        "seed": 1003,
+        "return": 996.0,
+        "max_x": 1124,
+        "agent_steps": 359,
+        "frames": 1435,
+        "flag_get": false,
+        "death": true,
+        "truncated": false,
+        "truncation_reason": null,
+        "action_counts": [
+          63,
+          76,
+          7,
+          65,
+          148
+        ],
+        "cleared_goomba1": true,
+        "cleared_pipe1": true,
+        "cleared_pipe2": true,
+        "cleared_pipe3": true,
+        "cleared_pipe4": true,
+        "cleared_pit1": false
+      },
+      {
+        "seed": 1004,
+        "return": 769.0,
+        "max_x": 863,
+        "agent_steps": 192,
+        "frames": 768,
+        "flag_get": false,
+        "death": true,
+        "truncated": false,
+        "truncation_reason": null,
+        "action_counts": [
+          35,
+          45,
+          3,
+          27,
+          82
+        ],
+        "cleared_goomba1": true,
+        "cleared_pipe1": true,
+        "cleared_pipe2": true,
+        "cleared_pipe3": true,
+        "cleared_pipe4": false,
+        "cleared_pit1": false
+      }
+    ]
+  },
+  {
+    "agent": "connectome_ppo_v2_latest[greedy]",
+    "frame_skip": 4,
+    "frame_stack": 4,
+    "protocol": {
+      "seeds": [
+        1000,
+        1001,
+        1002,
+        1003,
+        1004
+      ],
+      "max_episode_frames": 5000,
+      "stall_frames": 600,
+      "noop_max": 30
+    },
+    "summary": {
+      "n_episodes": 5,
+      "return_mean": 231.4,
+      "return_std": 0.8,
+      "max_x_mean": 296.4,
+      "max_x_std": 0.8,
+      "max_x_best": 298,
+      "death_rate": 1.0,
+      "truncation_rate": 0.0,
+      "completion_rate": 0.0,
+      "action_dist": {
+        "NOOP": 0.0,
+        "RIGHT": 0.0,
+        "LEFT": 0.0,
+        "JUMP": 0.0,
+        "RIGHT+JUMP": 1.0
+      },
+      "action_entropy_nats": -0.0,
+      "clear_rate_goomba1": 0.0,
+      "clear_rate_pipe1": 0.0,
+      "clear_rate_pipe2": 0.0,
+      "clear_rate_pipe3": 0.0,
+      "clear_rate_pipe4": 0.0,
+      "clear_rate_pit1": 0.0
+    },
+    "episodes": [
+      {
+        "seed": 1000,
+        "return": 231.0,
+        "max_x": 296,
+        "agent_steps": 40,
+        "frames": 160,
+        "flag_get": false,
+        "death": true,
+        "truncated": false,
+        "truncation_reason": null,
+        "action_counts": [
+          0,
+          0,
+          0,
+          0,
+          40
+        ],
+        "cleared_goomba1": false,
+        "cleared_pipe1": false,
+        "cleared_pipe2": false,
+        "cleared_pipe3": false,
+        "cleared_pipe4": false,
+        "cleared_pit1": false
+      },
+      {
+        "seed": 1001,
+        "return": 231.0,
+        "max_x": 296,
+        "agent_steps": 40,
+        "frames": 160,
+        "flag_get": false,
+        "death": true,
+        "truncated": false,
+        "truncation_reason": null,
+        "action_counts": [
+          0,
+          0,
+          0,
+          0,
+          40
+        ],
+        "cleared_goomba1": false,
+        "cleared_pipe1": false,
+        "cleared_pipe2": false,
+        "cleared_pipe3": false,
+        "cleared_pipe4": false,
+        "cleared_pit1": false
+      },
+      {
+        "seed": 1002,
+        "return": 231.0,
+        "max_x": 296,
+        "agent_steps": 40,
+        "frames": 160,
+        "flag_get": false,
+        "death": true,
+        "truncated": false,
+        "truncation_reason": null,
+        "action_counts": [
+          0,
+          0,
+          0,
+          0,
+          40
+        ],
+        "cleared_goomba1": false,
+        "cleared_pipe1": false,
+        "cleared_pipe2": false,
+        "cleared_pipe3": false,
+        "cleared_pipe4": false,
+        "cleared_pit1": false
+      },
+      {
+        "seed": 1003,
+        "return": 233.0,
+        "max_x": 298,
+        "agent_steps": 41,
+        "frames": 161,
+        "flag_get": false,
+        "death": true,
+        "truncated": false,
+        "truncation_reason": null,
+        "action_counts": [
+          0,
+          0,
+          0,
+          0,
+          41
+        ],
+        "cleared_goomba1": false,
+        "cleared_pipe1": false,
+        "cleared_pipe2": false,
+        "cleared_pipe3": false,
+        "cleared_pipe4": false,
+        "cleared_pit1": false
+      },
+      {
+        "seed": 1004,
+        "return": 231.0,
+        "max_x": 296,
+        "agent_steps": 40,
+        "frames": 160,
+        "flag_get": false,
+        "death": true,
+        "truncated": false,
+        "truncation_reason": null,
+        "action_counts": [
+          0,
+          0,
+          0,
+          0,
+          40
+        ],
+        "cleared_goomba1": false,
+        "cleared_pipe1": false,
+        "cleared_pipe2": false,
+        "cleared_pipe3": false,
+        "cleared_pipe4": false,
+        "cleared_pit1": false
+      }
+    ]
+  }
+]
