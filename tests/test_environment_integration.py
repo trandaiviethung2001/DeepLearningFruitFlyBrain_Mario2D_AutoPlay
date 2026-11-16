@@ -10,8 +10,15 @@ from __future__ import annotations
 
 import sys
 import time
-import resource
 from pathlib import Path
+
+try:
+    import resource
+    def get_peak_rss_mb() -> float:
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024 * 1024)
+except ImportError:
+    def get_peak_rss_mb() -> float:
+        return 0.0
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -34,7 +41,7 @@ def run_environment_integration_test(num_steps: int = 100) -> bool:
 
     print("1. Initializing environment and model...")
     env = Mario2DEnv()
-    device = torch.device("cpu")
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     model = ConnectomeMarioPolicy(
         subgraph_npz_path=sub_graph_path,
@@ -80,7 +87,7 @@ def run_environment_integration_test(num_steps: int = 100) -> bool:
     total_time = time.time() - t_start
     env.close()
 
-    peak_rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024 * 1024)
+    peak_rss_mb = get_peak_rss_mb()
     avg_latency = sum(step_latencies) / len(step_latencies)
     fps = num_steps / total_time
 

@@ -10,8 +10,15 @@ from __future__ import annotations
 
 import sys
 import time
-import resource
 from pathlib import Path
+
+try:
+    import resource
+    def get_peak_rss_mb() -> float:
+        return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024 * 1024)
+except ImportError:
+    def get_peak_rss_mb() -> float:
+        return 0.0
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -28,9 +35,13 @@ def run_local_inference_test(num_steps: int = 50) -> bool:
     print("=" * 60)
 
     # 1. Device detection & validation
-    mps_available = torch.backends.mps.is_available()
-    device = torch.device("mps" if mps_available else "cpu")
-    print(f"1. Target inference device: {device} (MPS available: {mps_available})")
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+    print(f"1. Target inference device: {device}")
 
     processed_dir = REPO_ROOT / "data" / "processed"
     sub_graph_path = processed_dir / "subgraph_graph.npz"
@@ -79,12 +90,14 @@ def run_local_inference_test(num_steps: int = 50) -> bool:
         with torch.no_grad():
             logits, value, h = model(obs, h, num_ticks=1)
             action = torch.argmax(logits, dim=-1).item()
-        if device.type == "mps":
+        if device.type == "cuda":
+            torch.cuda.synchronize()
+        elif device.type == "mps":
             torch.mps.synchronize()
         dt = (time.perf_counter() - t0) * 1000.0  # ms
         latencies.append(dt)
 
-    peak_rss_mb = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1024 * 1024)
+    peak_rss_mb = get_peak_rss_mb()
     l_arr = np.array(latencies)
 
     print("\n--- Latency and Memory Profile ---")

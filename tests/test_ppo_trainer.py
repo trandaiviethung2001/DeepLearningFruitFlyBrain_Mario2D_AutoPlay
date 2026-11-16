@@ -125,8 +125,8 @@ class TestPPOTrainer(unittest.TestCase):
         shaper = DopamineRewardShaper(jump_penalty=0.1, score_scale=0.01, coin_scale=1.0, powerup_bonus=5.0, flag_time_scale=0.05)
         shaper.reset(initial_x=40, initial_score=0, initial_coins=0, initial_status="small")
 
-        # Step 1: Forward movement + jump action
-        r1, d1 = shaper.shape(raw_reward=10.0, info={"x_pos": 60, "score": 0, "coins": 0, "status": "small"}, done=False, action=2)
+        # Step 1: Forward movement + jump action (Action 4: RIGHT+JUMP)
+        r1, d1 = shaper.shape(raw_reward=10.0, info={"x_pos": 60, "score": 0, "coins": 0, "status": "small"}, done=False, action=4)
         self.assertGreater(d1["dopamine"], 0.0)
         self.assertAlmostEqual(d1["dx"], 20.0)
 
@@ -151,6 +151,72 @@ class TestPPOTrainer(unittest.TestCase):
         self.assertGreaterEqual(d5["flag_bonus"], 50.0)
         self.assertAlmostEqual(d5["time_bonus"], 350 * 0.05)
         self.assertGreaterEqual(d5["dopamine"], 65.0)
+
+        # Step 6: Goomba stomp (+100 score, no coin, no powerup)
+        r6, d6 = shaper.shape(raw_reward=0.0, info={"x_pos": 3161, "score": 1300, "coins": 1, "status": "tall"}, done=False, action=0)
+        self.assertEqual(d6["enemy_bonus"], 15.0)
+        self.assertGreaterEqual(d6["dopamine"], 15.0)
+
+        # Step 7: Walking left (Action 2: LEFT) should NOT incur jump penalty
+        shaper.reset(initial_x=60, initial_score=1300, initial_coins=1, initial_status="tall")
+        r7, d7 = shaper.shape(raw_reward=0.0, info={"x_pos": 55, "score": 1300, "coins": 1, "status": "tall"}, done=False, action=2)
+        # dx = -5, stagnant penalty applies (-0.05), time penalty applies (-0.01), jump penalty does NOT apply
+        expected_dopamine = -shaper.stagnant_penalty - shaper.time_penalty
+        self.assertAlmostEqual(d7["dopamine"], expected_dopamine)
+
+    def test_vector_mario_env_rollout(self):
+        """PPOTrainer collects transitions properly across multiple parallel environments."""
+        from src.environment import VectorMarioEnv
+        model = BaselineMarioPolicy(in_channels=4, hidden_dim=64).to(self.device)
+        vec_env = VectorMarioEnv(num_envs=2, frame_stack=4)
+        trainer = PPOTrainer(model=model, env=vec_env, device=self.device, anneal_lr=True)
+
+        buf = RolloutBuffer(buffer_size=8, obs_shape=(4, 84, 84), device=self.device)
+        obs, _ = vec_env.reset()
+        h = None
+
+        obs, h, roll_stats, b_vals = trainer.collect_rollout(buf, obs, h, seq_len=4)
+        self.assertTrue(buf.is_full())
+        self.assertEqual(len(b_vals), 2)
+        self.assertIsInstance(roll_stats["mean_reward"], float)
+
+        # Update test with vector env
+        up_stats = trainer.update(buffer=buf, bootstrap_val=b_vals, ppo_epochs=1, mini_batch_size=8, seq_len=4)
+        vec_env.close()
+
+        self.assertIn("policy_loss", up_stats)
+        self.assertFalse(torch.isnan(torch.tensor(up_stats["policy_loss"])))
+
+    def test_stateful_checkpoint_preservation(self):
+        """Checkpoints must save and restore optimizer_state_dict, lr, and model weights."""
+        import tempfile
+        model = BaselineMarioPolicy(in_channels=4, hidden_dim=64).to(self.device)
+        env = Mario2DEnv(frame_stack=4)
+        trainer = PPOTrainer(model=model, env=env, device=self.device, lr=1.5e-4)
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            ckpt_p = Path(tmpdir) / "test_ckpt.pt"
+            trainer.train(
+                total_timesteps=8,
+                rollout_steps=8,
+                ppo_epochs=1,
+                mini_batch_size=8,
+                checkpoint_path=ckpt_p,
+                seq_len=4,
+            )
+
+            latest_p = ckpt_p.parent / f"{ckpt_p.stem}_latest{ckpt_p.suffix}"
+            self.assertTrue(latest_p.exists())
+            saved = torch.load(latest_p, map_location="cpu", weights_only=False)
+
+            self.assertIn("optimizer_state_dict", saved)
+            self.assertIn("lr", saved)
+            self.assertIn("model_state_dict", saved)
+            self.assertIn("iteration", saved)
+            self.assertIn("timesteps", saved)
+            self.assertEqual(saved["timesteps"], 8)
+        env.close()
+
 
 
 def run_ppo_trainer_tests() -> bool:

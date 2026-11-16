@@ -22,6 +22,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.run_scientific_ablation import compute_welch_t_test, load_model_family
+from src.environment import WORLD_1_1_LANDMARKS
 from src.visualization import (
     MarioTelemetryFrame,
     compute_sparsity_ratio,
@@ -103,11 +104,22 @@ def test_model_families_loading():
         assert not model.rnn.W_rec.requires_grad
 
 
+def test_landmark_consistency():
+    """Ensure landmark clearance coordinates match gold-standard level geometry."""
+    assert WORLD_1_1_LANDMARKS["goomba1"] == 300
+    assert WORLD_1_1_LANDMARKS["pipe1"] == 481
+    assert WORLD_1_1_LANDMARKS["pipe2"] == 641
+    assert WORLD_1_1_LANDMARKS["pipe3"] == 769
+    assert WORLD_1_1_LANDMARKS["pipe4"] == 945
+    assert WORLD_1_1_LANDMARKS["pit1"] == 1137
+
+
 def run_ablation_metrics_tests() -> bool:
     test_sparsity_ratio()
     test_welch_t_test_and_cohens_d()
     test_telemetry_canvas_rendering()
     test_model_families_loading()
+    test_landmark_consistency()
     return True
 
 

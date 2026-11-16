@@ -117,7 +117,10 @@ class TestEnvSemantics(unittest.TestCase):
             self.assertEqual(info["frames"], 4)
         self.assertEqual(obs.shape, (4, 84, 84))
         # last stacked channel == current screen
-        cur = env.preprocess_frame(env.env.unwrapped.screen.copy())
+        raw_screen = getattr(env.env.unwrapped, "screen", None)
+        if raw_screen is None:
+            raw_screen = env.screen
+        cur = env.preprocess_frame(raw_screen.copy())
         self.assertTrue(torch.allclose(obs[-1:], cur))
         env.close()
 
