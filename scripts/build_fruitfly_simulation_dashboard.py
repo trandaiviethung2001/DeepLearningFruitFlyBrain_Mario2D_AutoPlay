@@ -3051,10 +3051,10 @@ def main():
         f.write(final_html)
     print(f"Saved local fruit fly simulation dashboard: {HTML_OUT} ({HTML_OUT.stat().st_size / (1024 * 1024):.2f} MB)")
 
-    ART_OUT.parent.mkdir(parents=True, exist_ok=True)
-    with open(ART_OUT, "w", encoding="utf-8") as f:
-        f.write(final_html)
-    print(f"Saved artifact dashboard: {ART_OUT} ({ART_OUT.stat().st_size / (1024 * 1024):.2f} MB)")
+    if ART_OUT.parent.exists():
+        with open(ART_OUT, "w", encoding="utf-8") as f:
+            f.write(final_html)
+        print(f"Saved artifact dashboard: {ART_OUT} ({ART_OUT.stat().st_size / (1024 * 1024):.2f} MB)")
 
 
 if __name__ == "__main__":

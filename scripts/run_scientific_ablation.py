@@ -34,7 +34,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from src.baseline_model import BaselineMarioPolicy
 from src.connectome_model import ConnectomeMarioPolicy
-from src.environment import Mario2DEnv
+from src.environment import Mario2DEnv, WORLD_1_1_LANDMARKS
 from src.visualization import compute_sparsity_ratio
 
 DEFAULT_EVAL_SEEDS = [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009]
@@ -42,7 +42,13 @@ DEFAULT_EVAL_SEEDS = [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run scientific connectome ablation study")
-    parser.add_argument("--connectome-ckpt", type=str, default="checkpoints/connectome_ppo_v3.pt", help="Connectome checkpoint")
+    default_conn = "checkpoints/connectome_ppo_v3.pt"
+    if not Path(default_conn).exists():
+        if Path("checkpoints/connectome_ppo_v2_latest.pt").exists():
+            default_conn = "checkpoints/connectome_ppo_v2_latest.pt"
+        elif Path("checkpoints/connectome_ppo_v2.pt").exists():
+            default_conn = "checkpoints/connectome_ppo_v2.pt"
+    parser.add_argument("--connectome-ckpt", type=str, default=default_conn, help="Connectome checkpoint")
     parser.add_argument("--baseline-ckpt", type=str, default="checkpoints/baseline_ppo_v3.pt", help="Baseline checkpoint")
     parser.add_argument("--seeds", type=int, nargs="+", default=DEFAULT_EVAL_SEEDS, help="Evaluation seeds")
     parser.add_argument("--max-steps", type=int, default=1250, help="Max steps per episode (x4 frames = 5000)")
@@ -103,6 +109,7 @@ def load_model_family(
             model_dict.update(pretrained_dict)
             model.load_state_dict(model_dict)
         else:
+            print(f"  [WARNING] Checkpoint not found at '{ckpt_path}'. Evaluating UNTRAINED {family} with random initialization!")
             in_channels = 4
             model = ConnectomeMarioPolicy(
                 subgraph_npz_path=graph_path,
@@ -199,12 +206,12 @@ def evaluate_single_seed(
         "total_reward": round(float(total_reward), 2),
         "steps": steps,
         "flag_get": bool(info.get("flag_get", False)),
-        "cleared_goomba1": bool(max_x >= 316),
-        "cleared_pipe1": bool(max_x >= 416),
-        "cleared_pipe2": bool(max_x >= 592),
-        "cleared_pipe3": bool(max_x >= 752),
-        "cleared_pipe4": bool(max_x >= 944),
-        "cleared_pit1": bool(max_x >= 1376),
+        "cleared_goomba1": bool(max_x >= WORLD_1_1_LANDMARKS["goomba1"]),
+        "cleared_pipe1": bool(max_x >= WORLD_1_1_LANDMARKS["pipe1"]),
+        "cleared_pipe2": bool(max_x >= WORLD_1_1_LANDMARKS["pipe2"]),
+        "cleared_pipe3": bool(max_x >= WORLD_1_1_LANDMARKS["pipe3"]),
+        "cleared_pipe4": bool(max_x >= WORLD_1_1_LANDMARKS["pipe4"]),
+        "cleared_pit1": bool(max_x >= WORLD_1_1_LANDMARKS["pit1"]),
         "mean_entropy": round(float(np.mean(entropies)) if entropies else 0.0, 4),
         "mean_sparsity_l1_l2": round(float(np.mean(sparsities)) if sparsities else 0.0, 2),
         "mean_firing_rate": round(float(np.mean(firing_rates)) if firing_rates else 0.0, 4),

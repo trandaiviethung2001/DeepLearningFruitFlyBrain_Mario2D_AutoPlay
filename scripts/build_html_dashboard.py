@@ -423,10 +423,10 @@ def main():
         f.write(final_html)
     print(f"Saved local decision dashboard: {HTML_OUT} ({HTML_OUT.stat().st_size / 1024:.1f} KB)")
 
-    ART_OUT.parent.mkdir(parents=True, exist_ok=True)
-    with open(ART_OUT, "w", encoding="utf-8") as f:
-        f.write(final_html)
-    print(f"Saved artifact dashboard: {ART_OUT} ({ART_OUT.stat().st_size / 1024:.1f} KB)")
+    if ART_OUT.parent.exists():
+        with open(ART_OUT, "w", encoding="utf-8") as f:
+            f.write(final_html)
+        print(f"Saved artifact dashboard: {ART_OUT} ({ART_OUT.stat().st_size / 1024:.1f} KB)")
 
 
 if __name__ == "__main__":

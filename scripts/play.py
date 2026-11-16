@@ -17,8 +17,12 @@ from __future__ import annotations
 
 import argparse
 import sys
+import io
 import time
 from pathlib import Path
+
+if sys.platform == "win32" and hasattr(sys.stdout, "buffer"):
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
 import numpy as np
 import torch
@@ -88,8 +92,8 @@ def parse_args():
     parser.add_argument(
         "--device",
         type=str,
-        default="mps" if torch.backends.mps.is_available() else "cpu",
-        help="Inference device (mps or cpu)",
+        default="cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"),
+        help="Inference device (cuda, mps, or cpu)",
     )
     parser.add_argument(
         "--auto-unlatch",
@@ -102,6 +106,12 @@ def parse_args():
         action="store_true",
         default=False,
         help="Sample actions probabilistically from policy distribution (like training) instead of greedy argmax",
+    )
+    parser.add_argument(
+        "--greedy",
+        action="store_true",
+        default=False,
+        help="Use deterministic greedy argmax action selection (default mode)",
     )
     parser.add_argument(
         "--temperature",
@@ -148,10 +158,14 @@ def main():
 
     # Set default checkpoint if not provided
     if not args.checkpoint:
-        if args.model == "connectome":
-            args.checkpoint = str(REPO_ROOT / "checkpoints" / "connectome_ppo_v3.pt")
+        v2_path = REPO_ROOT / "checkpoints" / f"{args.model}_ppo_v2.pt"
+        v3_path = REPO_ROOT / "checkpoints" / f"{args.model}_ppo_v3.pt"
+        if v2_path.exists():
+            args.checkpoint = str(v2_path)
+        elif v3_path.exists():
+            args.checkpoint = str(v3_path)
         else:
-            args.checkpoint = str(REPO_ROOT / "checkpoints" / "baseline_ppo_v3.pt")
+            args.checkpoint = str(v2_path)
 
     policy, in_channels = load_agent(args.model, args.checkpoint, device)
 
@@ -245,13 +259,13 @@ def main():
                     time.sleep(sleep_time)
 
             if flag:
-                print(f"\n\n🎉 FLAGPOLE REACHED! Mario won the game at step {step} (X={x_pos})! 🎉")
+                print(f"\n\n[FLAGPOLE REACHED] Mario won the game at step {step} (X={x_pos})!")
                 break
             if terminated:
-                print(f"\n\n💀 Episode ended (Died) at step {step} (X={x_pos}).")
+                print(f"\n\n[DIED] Episode ended at step {step} (X={x_pos}).")
                 break
             if truncated:
-                print(f"\n\n⏱️ Episode truncated at step {step} (X={x_pos}).")
+                print(f"\n\n[TIMEOUT] Episode truncated at step {step} (X={x_pos}).")
                 break
 
     except KeyboardInterrupt:

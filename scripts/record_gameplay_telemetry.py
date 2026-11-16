@@ -43,7 +43,7 @@ def parse_args():
     parser.add_argument("--out-gif", type=str, default="", help="Path for output GIF")
     parser.add_argument("--out-mp4", type=str, default="", help="Path for output MP4")
     parser.add_argument("--fps", type=int, default=15, help="Frame rate")
-    parser.add_argument("--device", type=str, default="mps" if torch.backends.mps.is_available() else "cpu", help="Device (mps or cpu)")
+    parser.add_argument("--device", type=str, default="cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu"), help="Device (cuda, mps or cpu)")
     return parser.parse_args()
 
 

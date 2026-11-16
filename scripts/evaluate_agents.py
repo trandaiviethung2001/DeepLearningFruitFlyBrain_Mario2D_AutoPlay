@@ -47,7 +47,9 @@ def main():
     ap.add_argument("--out", type=str, default="logs/eval_results.json")
     args = ap.parse_args()
 
-    dev = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
+    dev = torch.device(
+        "cuda" if torch.cuda.is_available() else ("mps" if torch.backends.mps.is_available() else "cpu")
+    )
     proto = EvalProtocol(seeds=DEFAULT_EVAL_SEEDS[: args.episodes] if args.episodes <= 10
                          else list(range(1000, 1000 + args.episodes)))
     agents = []
@@ -63,6 +65,13 @@ def main():
             if p.exists():
                 for m in args.modes:
                     agents.append(load_policy_agent(p, dev, m, name=f"legacy {c}[{m}]"))
+    if not args.ckpt and args.suite == "none":
+        for cand in ["connectome_ppo_v2_latest.pt", "connectome_ppo_v2.pt", "baseline_ppo_v3.pt"]:
+            p = REPO_ROOT / "checkpoints" / cand
+            if p.exists():
+                args.ckpt = [str(p)]
+                break
+
     for c in args.ckpt:
         for m in args.modes:
             agents.append(load_policy_agent(c, dev, m))
