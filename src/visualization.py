@@ -20,7 +20,7 @@ import numpy as np
 import torch
 from PIL import Image
 
-ACTION_NAMES = ["NOOP", "RIGHT", "RIGHT+A", "RIGHT+B", "RIGHT+A+B"]
+ACTION_NAMES = ["NOOP", "RIGHT", "LEFT", "JUMP", "RIGHT+JUMP"]
 
 
 class MarioTelemetryFrame:
@@ -227,12 +227,19 @@ def export_telemetry_mp4(
         str(out_file),
     ]
 
-    process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-    for f in frames:
-        cropped = f[:h, :w]
-        process.stdin.write(cropped.tobytes())
-    process.stdin.close()
-    process.wait()
+    try:
+        process = subprocess.Popen(ffmpeg_cmd, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
+        for f in frames:
+            cropped = f[:h, :w]
+            process.stdin.write(cropped.tobytes())
+        process.stdin.close()
+        process.wait()
+    except FileNotFoundError:
+        raise RuntimeError(
+            "ffmpeg is not installed or not found in system PATH. "
+            "Please install ffmpeg (e.g. 'winget install Gyan.FFmpeg' on Windows, or 'brew install ffmpeg' on macOS), "
+            "or export as animated GIF using export_telemetry_gif() instead."
+        )
 
     if process.returncode != 0:
         err = process.stderr.read().decode()

@@ -60,4 +60,3 @@ class BaselineMarioPolicy(nn.Module):
             return logits, value, h_next, telemetry
 
         return logits, value, h_next
-

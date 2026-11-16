@@ -11,6 +11,11 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Tuple, Optional
+import warnings
+
+# Suppress SciPy numpy warning and pandas DtypeWarning
+warnings.filterwarnings("ignore", category=UserWarning, module="scipy")
+
 import numpy as np
 import scipy.sparse as sp
 import pandas as pd
@@ -87,8 +92,12 @@ class ConnectomeRecurrentLayer(nn.Module):
             h_next: (B, N) updated recurrent state
         """
         # Recurrent message passing: (N, N) @ (N, B) -> (N, B) -> transpose to (B, N)
-        # Note: torch.sparse.mm on MPS or CPU
-        incoming = torch.sparse.mm(self.W_rec, h.T).T
+        # Note: torch.sparse.mm on CUDA requires float32 (not implemented for Half in PyTorch)
+        if self.W_rec.is_cuda:
+            with torch.amp.autocast("cuda", enabled=False):
+                incoming = torch.sparse.mm(self.W_rec, h.T.float()).T
+        else:
+            incoming = torch.sparse.mm(self.W_rec, h.T).T
 
         # Continuous-rate leaky-integrator recurrent dynamics
         total_drive = incoming + u_in + self.bias
@@ -117,7 +126,7 @@ class ConnectomeMarioPolicy(nn.Module):
 
         # Load node mappings and metadata to identify sensory and motor neurons
         node_map = pd.read_csv(str(node_mapping_csv_path))
-        metadata = pd.read_csv(str(node_metadata_csv_path))
+        metadata = pd.read_csv(str(node_metadata_csv_path), low_memory=False)
 
         merged = node_map.merge(metadata, on="body_id", how="left")
         vp_mask = (merged["superclass"] == "visual_projection").to_numpy()
@@ -176,7 +185,7 @@ class ConnectomeMarioPolicy(nn.Module):
         sensory_drive = self.adapter(features)  # (B, N_sensory)
 
         # Embed into full (B, N) injection vector
-        u_in = torch.zeros(B, self.num_nodes, device=obs.device, dtype=torch.float32)
+        u_in = torch.zeros(B, self.num_nodes, device=obs.device, dtype=sensory_drive.dtype)
         u_in[:, self.sensory_indices] = sensory_drive
 
         # 3. Fixed MaleCNS recurrent propagation across internal ticks
